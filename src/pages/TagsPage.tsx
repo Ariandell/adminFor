@@ -62,7 +62,7 @@ export default function TagsPage() {
             value={name}
             onChange={e => setName(e.target.value)}
             type="text"
-            placeholder="Наприклад, Їжа або Тварини"
+            placeholder="Назва нового тегу"
             className="flex-1 rounded-xl border border-input bg-card px-3.5 py-2.5 text-[15px] text-foreground placeholder:text-muted-foreground/70 transition"
           />
           <button

@@ -5,6 +5,7 @@ import EditorBlock from '../components/EditorBlock';
 import { type OutputData } from '@editorjs/editorjs';
 import Select from 'react-select';
 import { ArrowLeft, Plus, Trash2, ImageIcon } from 'lucide-react';
+import ImageDropZone from '../components/ImageDropZone';
 import { useToast } from '../components/Toast';
 
 export default function LessonEditorPage() {
@@ -156,8 +157,6 @@ export default function LessonEditorPage() {
   const inputClass =
     'w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-[15px] text-foreground placeholder:text-muted-foreground/70 transition';
   const labelClass = 'block text-[13px] font-medium text-muted-foreground mb-1.5';
-  const fileClass =
-    'w-full text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-card file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground hover:file:bg-border/60 file:transition';
 
   return (
     <div className="pb-20">
@@ -217,12 +216,12 @@ export default function LessonEditorPage() {
             <form onSubmit={handleAddCard} className="bg-card p-6 rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.04)] mb-6 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelClass}>Слово</label>
-                  <input required value={newCardWord} onChange={e => setNewCardWord(e.target.value)} type="text" className={inputClass} />
+                  <label className={labelClass}>Слово мовою курсу</label>
+                  <input required value={newCardWord} onChange={e => setNewCardWord(e.target.value)} type="text" placeholder="Оригінал" className={inputClass} />
                 </div>
                 <div>
-                  <label className={labelClass}>Переклад</label>
-                  <input required value={newCardTrans} onChange={e => setNewCardTrans(e.target.value)} type="text" className={inputClass} />
+                  <label className={labelClass}>Переклад українською</label>
+                  <input required value={newCardTrans} onChange={e => setNewCardTrans(e.target.value)} type="text" placeholder="Переклад" className={inputClass} />
                 </div>
               </div>
 
@@ -239,14 +238,8 @@ export default function LessonEditorPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelClass}>Сіре зображення</label>
-                  <input type="file" accept="image/*" onChange={e => setGrayFile(e.target.files?.[0] || null)} className={fileClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Кольорове зображення</label>
-                  <input type="file" accept="image/*" onChange={e => setColorFile(e.target.files?.[0] || null)} className={fileClass} />
-                </div>
+                <ImageDropZone label="Чорно-біле фото" file={grayFile} onChange={setGrayFile} compact />
+                <ImageDropZone label="Кольорове фото" file={colorFile} onChange={setColorFile} compact />
               </div>
 
               <div className="flex justify-end gap-2 pt-2">

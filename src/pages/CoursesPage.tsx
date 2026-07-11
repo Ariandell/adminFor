@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient';
 import { Link } from 'react-router-dom';
 import { useToast } from '../components/Toast';
 import { ImageIcon, ChevronRight } from 'lucide-react';
+import ImageDropZone from '../components/ImageDropZone';
 
 export default function CoursesPage() {
   const { showToast } = useToast();
@@ -77,8 +78,6 @@ export default function CoursesPage() {
   const inputClass =
     'w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-[15px] text-foreground placeholder:text-muted-foreground/70 transition';
   const labelClass = 'block text-[13px] font-medium text-muted-foreground mb-1.5';
-  const fileClass =
-    'w-full text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-muted file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground hover:file:bg-border/60 file:transition';
 
   return (
     <div>
@@ -94,7 +93,7 @@ export default function CoursesPage() {
           <form onSubmit={createCourse} className="space-y-4">
             <div>
               <label className={labelClass}>Назва</label>
-              <input required value={title} onChange={e => setTitle(e.target.value)} type="text" placeholder="Наприклад, Японська" className={inputClass} />
+              <input required value={title} onChange={e => setTitle(e.target.value)} type="text" placeholder="Назва курсу" className={inputClass} />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -109,13 +108,11 @@ export default function CoursesPage() {
             </div>
 
             <div className="pt-4 border-t border-border">
-              <label className={labelClass}>Чорно-біле зображення</label>
-              <input type="file" accept="image/*" onChange={e => setUncoloredFile(e.target.files?.[0] || null)} className={fileClass} />
-            </div>
-
-            <div>
-              <label className={labelClass}>Кольорове зображення</label>
-              <input type="file" accept="image/*" onChange={e => setColoredFile(e.target.files?.[0] || null)} className={fileClass} />
+              <p className="text-[13px] text-muted-foreground mb-3">Обкладинки курсу</p>
+              <div className="grid grid-cols-2 gap-3">
+                <ImageDropZone label="Чорно-біла" file={uncoloredFile} onChange={setUncoloredFile} compact />
+                <ImageDropZone label="Кольорова" file={coloredFile} onChange={setColoredFile} compact />
+              </div>
             </div>
 
             <button
