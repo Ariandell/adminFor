@@ -1,4 +1,5 @@
 import { useState, useCallback, createContext, useContext } from 'react';
+import { Check, X, Info } from 'lucide-react';
 
 type ToastType = 'success' | 'error' | 'info';
 
@@ -35,44 +36,42 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  const iconMap: Record<ToastType, string> = {
-    success: '✓',
-    error: '✕',
-    info: 'ℹ',
+  const iconMap: Record<ToastType, React.ReactNode> = {
+    success: <Check size={14} strokeWidth={3} />,
+    error: <X size={14} strokeWidth={3} />,
+    info: <Info size={14} strokeWidth={3} />,
   };
 
-  const colorMap: Record<ToastType, { bg: string; border: string; text: string; icon: string }> = {
-    success: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-800', icon: 'bg-emerald-500' },
-    error:   { bg: 'bg-red-50',     border: 'border-red-200',     text: 'text-red-800',     icon: 'bg-red-500' },
-    info:    { bg: 'bg-blue-50',    border: 'border-blue-200',    text: 'text-blue-800',    icon: 'bg-blue-500' },
+  const iconBg: Record<ToastType, string> = {
+    success: 'bg-success',
+    error: 'bg-destructive',
+    info: 'bg-accent',
   };
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
       {/* Toast container */}
-      <div className="fixed top-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none" style={{ maxWidth: 420 }}>
-        {toasts.map(toast => {
-          const c = colorMap[toast.type];
-          return (
-            <div
-              key={toast.id}
-              className={`pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-xl border shadow-lg ${c.bg} ${c.border} animate-slide-in`}
-              style={{ animation: 'slideIn 0.3s ease-out' }}
+      <div className="fixed top-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none" style={{ maxWidth: 380 }}>
+        {toasts.map(toast => (
+          <div
+            key={toast.id}
+            className="pointer-events-auto flex items-center gap-3 pl-3 pr-4 py-3 rounded-2xl border border-border bg-card/90 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.14)]"
+            style={{ animation: 'slideIn 0.28s cubic-bezier(0.22, 1, 0.36, 1)' }}
+          >
+            <span className={`flex-shrink-0 w-6 h-6 rounded-full ${iconBg[toast.type]} text-white flex items-center justify-center`}>
+              {iconMap[toast.type]}
+            </span>
+            <p className="text-[14px] font-medium text-foreground flex-1 leading-snug">{toast.message}</p>
+            <button
+              onClick={() => dismiss(toast.id)}
+              className="flex-shrink-0 text-muted-foreground/60 hover:text-foreground transition-colors"
+              aria-label="Закрити"
             >
-              <span className={`flex-shrink-0 w-6 h-6 rounded-full ${c.icon} text-white flex items-center justify-center text-sm font-bold mt-0.5`}>
-                {iconMap[toast.type]}
-              </span>
-              <p className={`text-sm font-medium ${c.text} flex-1`}>{toast.message}</p>
-              <button
-                onClick={() => dismiss(toast.id)}
-                className={`flex-shrink-0 ${c.text} opacity-50 hover:opacity-100 transition-opacity text-lg leading-none mt-0.5`}
-              >
-                ×
-              </button>
-            </div>
-          );
-        })}
+              <X size={16} />
+            </button>
+          </div>
+        ))}
       </div>
     </ToastContext.Provider>
   );

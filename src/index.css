@@ -1,12 +1,89 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+
+  --color-background: #f5f5f7;
+  --color-foreground: #1d1d1f;
+
+  --color-card: #ffffff;
+  --color-card-foreground: #1d1d1f;
+
+  --color-muted: #f5f5f7;
+  --color-muted-foreground: #86868b;
+
+  --color-border: #e5e5ea;
+  --color-input: #d2d2d7;
+
+  --color-accent: #0071e3;
+  --color-accent-hover: #0077ed;
+  --color-accent-foreground: #ffffff;
+  --color-accent-soft: #ecf3fe;
+
+  --color-destructive: #ff3b30;
+  --color-destructive-soft: #fff0ef;
+
+  --color-success: #34c759;
+
+  --radius: 0.875rem;
+}
+
+html,
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+/* Refined focus ring, Apple style */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.15);
+}
+
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateX(100%);
+    transform: translateY(-8px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0) scale(1);
   }
+}
+
+/* Style the react-select control to match the design system */
+.select__control {
+  border-radius: 0.625rem !important;
+  border-color: var(--color-input) !important;
+  min-height: 44px !important;
+  box-shadow: none !important;
+  background-color: var(--color-card) !important;
+}
+.select__control--is-focused {
+  border-color: var(--color-accent) !important;
+  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.15) !important;
+}
+.select__multi-value {
+  background-color: var(--color-accent-soft) !important;
+  border-radius: 9999px !important;
+  padding: 0 2px !important;
+}
+.select__multi-value__label {
+  color: var(--color-accent) !important;
+  font-weight: 500 !important;
+}
+.select__menu {
+  border-radius: 0.75rem !important;
+  overflow: hidden !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12) !important;
 }

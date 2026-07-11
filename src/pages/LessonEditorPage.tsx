@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient';
 import EditorBlock from '../components/EditorBlock';
 import { type OutputData } from '@editorjs/editorjs';
 import Select from 'react-select';
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ImageIcon } from 'lucide-react';
 import { useToast } from '../components/Toast';
 
 export default function LessonEditorPage() {
@@ -75,7 +75,7 @@ export default function LessonEditorPage() {
       if (lessonId) {
         const { error } = await supabase.from('lessons').update(lessonData).eq('id', lessonId);
         if (error) throw error;
-        showToast('Урок оновлено!', 'success');
+        showToast('Урок оновлено', 'success');
       } else {
         // Get next order_index
         const { count } = await supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('course_id', courseId);
@@ -83,11 +83,11 @@ export default function LessonEditorPage() {
 
         const { data, error } = await supabase.from('lessons').insert([{ ...lessonData, order_index: orderIndex }]).select().single();
         if (error) throw error;
-        showToast('Урок створено!', 'success');
+        showToast('Урок створено', 'success');
         navigate(`/courses/${courseId}/lessons/${data.id}`);
       }
     } catch (error: any) {
-      showToast('Помилка: ' + error.message, 'error');
+      showToast(error.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -103,7 +103,7 @@ export default function LessonEditorPage() {
   async function handleAddCard(e: React.FormEvent) {
     e.preventDefault();
     if (!lessonId) {
-      showToast('Спочатку збережіть урок, щоб додавати картки!', 'info');
+      showToast('Спершу збережіть урок', 'info');
       return;
     }
     setLoading(true);
@@ -139,7 +139,7 @@ export default function LessonEditorPage() {
       fetchLessonData();
 
     } catch (err: any) {
-      showToast('Помилка: ' + err.message, 'error');
+      showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -151,112 +151,134 @@ export default function LessonEditorPage() {
     fetchLessonData();
   }
 
-  if (!initialDataLoaded) return <div className="p-8">Завантаження...</div>;
+  if (!initialDataLoaded) return <div className="text-muted-foreground py-8">Завантаження…</div>;
+
+  const inputClass =
+    'w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-[15px] text-foreground placeholder:text-muted-foreground/70 transition';
+  const labelClass = 'block text-[13px] font-medium text-muted-foreground mb-1.5';
+  const fileClass =
+    'w-full text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-card file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground hover:file:bg-border/60 file:transition';
 
   return (
-    <div className="max-w-4xl mx-auto pb-20">
-      <Link to={`/courses/${courseId}`} className="inline-flex items-center text-blue-600 hover:text-blue-800 mb-6 font-medium">
-        <ArrowLeft size={16} className="mr-2" /> Назад до курсу
+    <div className="pb-20">
+      <Link to={`/courses/${courseId}`} className="inline-flex items-center text-[15px] text-muted-foreground hover:text-foreground mb-8 transition-colors">
+        <ArrowLeft size={17} className="mr-1.5" /> До курсу
       </Link>
 
-      <h1 className="text-3xl font-bold mb-8">{lessonId ? 'Редагувати урок' : 'Створити новий урок'}</h1>
+      <header className="mb-8">
+        <h1 className="text-[34px] font-semibold tracking-tight leading-tight">
+          {lessonId ? 'Редагування уроку' : 'Новий урок'}
+        </h1>
+      </header>
 
       {/* Lesson Form */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+      <div className="bg-card p-6 rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.04)] mb-8">
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Назва уроку</label>
-          <input required value={title} onChange={e => setTitle(e.target.value)} type="text" className="w-full border rounded-lg p-2 text-lg" placeholder="Назва уроку..." />
+          <label className={labelClass}>Назва уроку</label>
+          <input required value={title} onChange={e => setTitle(e.target.value)} type="text" className="w-full rounded-xl border border-input bg-card px-4 py-3 text-lg font-medium text-foreground placeholder:text-muted-foreground/70 transition" placeholder="Введіть назву" />
         </div>
 
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Контент уроку</label>
-          <p className="text-xs text-gray-400 mb-3">
-            Використовуйте «+» або «/» щоб додати блоки: текст, заголовок, список, цитату, зображення, аудіо, YouTube відео, тест та інше.
+          <label className={labelClass}>Контент</label>
+          <p className="text-xs text-muted-foreground mb-3">
+            Додавайте блоки через «+» або «/»: текст, заголовок, список, зображення, аудіо, відео чи тест.
           </p>
-          <EditorBlock initialData={content} onChange={setContent} />
+          <div className="rounded-xl border border-border bg-muted/40 px-2 py-1">
+            <EditorBlock initialData={content} onChange={setContent} />
+          </div>
         </div>
 
-        <button disabled={loading} onClick={handleSaveLesson}
-          className="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 transition text-lg">
-          {loading ? 'Збереження...' : 'Зберегти урок'}
+        <button
+          disabled={loading}
+          onClick={handleSaveLesson}
+          className="bg-accent text-accent-foreground px-6 py-3 rounded-xl font-medium hover:bg-accent-hover active:scale-[0.99] disabled:opacity-50 transition-all duration-200"
+        >
+          {loading ? 'Збереження…' : 'Зберегти урок'}
         </button>
       </div>
 
       {/* Cards Section */}
       {lessonId && (
         <div>
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Картки (Слова)</h2>
-            <button onClick={() => setShowCardForm(!showCardForm)} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center">
-              <Plus size={18} className="mr-2" /> Додати картку
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-lg font-semibold tracking-tight">Картки</h2>
+              <span className="text-sm text-muted-foreground">{cards.length}</span>
+            </div>
+            <button
+              onClick={() => setShowCardForm(!showCardForm)}
+              className="bg-foreground text-background px-4 py-2.5 rounded-xl text-[15px] font-medium hover:opacity-90 active:scale-[0.98] transition-all duration-200 flex items-center"
+            >
+              <Plus size={18} className="mr-1.5" /> Нова картка
             </button>
           </div>
 
           {showCardForm && (
-            <form onSubmit={handleAddCard} className="bg-green-50 p-6 rounded-2xl border border-green-200 mb-8 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handleAddCard} className="bg-card p-6 rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.04)] mb-6 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Оригінал слова</label>
-                  <input required value={newCardWord} onChange={e => setNewCardWord(e.target.value)} type="text" className="w-full border rounded-lg p-2" />
+                  <label className={labelClass}>Слово</label>
+                  <input required value={newCardWord} onChange={e => setNewCardWord(e.target.value)} type="text" className={inputClass} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Переклад</label>
-                  <input required value={newCardTrans} onChange={e => setNewCardTrans(e.target.value)} type="text" className="w-full border rounded-lg p-2" />
+                  <label className={labelClass}>Переклад</label>
+                  <input required value={newCardTrans} onChange={e => setNewCardTrans(e.target.value)} type="text" className={inputClass} />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Теги</label>
+                <label className={labelClass}>Теги</label>
                 <Select
                   isMulti
                   options={tagsOptions}
                   value={newCardTags}
                   onChange={(val) => setNewCardTags(val as any[])}
-                  placeholder="Оберіть теги..."
+                  placeholder="Оберіть теги"
+                  classNamePrefix="select"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4 pt-2">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Сіре фото (Gray)</label>
-                  <input type="file" accept="image/*" onChange={e => setGrayFile(e.target.files?.[0] || null)} className="w-full text-sm" />
+                  <label className={labelClass}>Сіре зображення</label>
+                  <input type="file" accept="image/*" onChange={e => setGrayFile(e.target.files?.[0] || null)} className={fileClass} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Кольорове фото (Color)</label>
-                  <input type="file" accept="image/*" onChange={e => setColorFile(e.target.files?.[0] || null)} className="w-full text-sm" />
+                  <label className={labelClass}>Кольорове зображення</label>
+                  <input type="file" accept="image/*" onChange={e => setColorFile(e.target.files?.[0] || null)} className={fileClass} />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 mt-4">
-                <button type="button" onClick={() => setShowCardForm(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Скасувати</button>
-                <button disabled={loading} type="submit" className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 disabled:opacity-50">
-                  {loading ? 'Збереження...' : 'Зберегти картку'}
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setShowCardForm(false)} className="px-4 py-2.5 text-[15px] text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors">Скасувати</button>
+                <button disabled={loading} type="submit" className="bg-accent text-accent-foreground px-5 py-2.5 rounded-xl text-[15px] font-medium hover:bg-accent-hover active:scale-[0.98] disabled:opacity-50 transition-all duration-200">
+                  {loading ? 'Збереження…' : 'Зберегти'}
                 </button>
               </div>
             </form>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {cards.map(card => (
-              <div key={card.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex gap-4">
-                <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+              <div key={card.id} className="bg-card p-4 rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex gap-4">
+                <div className="w-16 h-16 bg-muted rounded-xl overflow-hidden shrink-0 flex items-center justify-center">
                   {card.image_color_url ? (
-                    <img src={card.image_color_url} alt="" className="w-full h-full object-cover" />
+                    <img src={card.image_color_url || "/placeholder.svg"} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">No img</div>
+                    <ImageIcon size={20} className="text-muted-foreground/50" />
                   )}
                 </div>
-                <div className="flex-1">
-                  <div className="flex justify-between">
-                    <h3 className="font-bold text-lg">{card.original_word}</h3>
-                    <button onClick={() => deleteCard(card.id)} className="text-gray-400 hover:text-red-500">
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start gap-2">
+                    <h3 className="font-semibold text-[16px] tracking-tight truncate">{card.original_word}</h3>
+                    <button onClick={() => deleteCard(card.id)} className="text-muted-foreground/60 hover:text-destructive shrink-0 transition-colors" aria-label="Видалити картку">
                       <Trash2 size={16} />
                     </button>
                   </div>
-                  <p className="text-gray-600 text-sm">{card.translation}</p>
-                  <div className="flex flex-wrap gap-1 mt-2">
+                  <p className="text-muted-foreground text-sm">{card.translation}</p>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
                     {card.card_tags?.map((ct: any) => (
-                      <span key={ct.tags?.id} className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-full">
+                      <span key={ct.tags?.id} className="text-xs bg-accent-soft text-accent px-2.5 py-0.5 rounded-full font-medium">
                         {ct.tags?.name}
                       </span>
                     ))}
@@ -265,7 +287,7 @@ export default function LessonEditorPage() {
               </div>
             ))}
             {cards.length === 0 && !showCardForm && (
-              <p className="text-gray-500 text-sm py-4 col-span-2 text-center border-2 border-dashed rounded-xl p-8">Картки ще не додано</p>
+              <p className="text-muted-foreground text-sm py-16 col-span-2 text-center border border-dashed border-border rounded-2xl">Карток ще немає</p>
             )}
           </div>
         </div>

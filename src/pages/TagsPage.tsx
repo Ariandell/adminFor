@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { Trash2 } from 'lucide-react';
+import { X, Plus } from 'lucide-react';
 import { useToast } from '../components/Toast';
 
 export default function TagsPage() {
@@ -23,15 +23,15 @@ export default function TagsPage() {
     e.preventDefault();
     if (!name.trim()) return;
     setLoading(true);
-    
+
     try {
       const { error } = await supabase.from('tags').insert([{ name: name.trim() }]);
       if (error) throw error;
-      
+
       setName('');
       fetchTags();
     } catch (error: any) {
-      showToast('Помилка: ' + error.message, 'error');
+      showToast(error.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -44,44 +44,57 @@ export default function TagsPage() {
       if (error) throw error;
       fetchTags();
     } catch (error: any) {
-      showToast('Помилка: ' + error.message, 'error');
+      showToast(error.message, 'error');
     }
   }
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-3xl font-bold mb-8">Управління тегами</h1>
-      
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
-        <h2 className="text-xl font-semibold mb-4">Створити новий тег</h2>
-        <form onSubmit={createTag} className="flex gap-4">
+      <header className="mb-10">
+        <h1 className="text-[34px] font-semibold tracking-tight leading-tight">Теги</h1>
+        <p className="text-muted-foreground mt-1 text-[15px]">Категорії для карток зі словами</p>
+      </header>
+
+      <div className="bg-card p-6 rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.04)] mb-8">
+        <form onSubmit={createTag} className="flex gap-3">
           <input
             required
             value={name}
             onChange={e => setName(e.target.value)}
             type="text"
-            placeholder="Наприклад: Їжа, Тварини..."
-            className="flex-1 border rounded-lg p-2"
+            placeholder="Наприклад, Їжа або Тварини"
+            className="flex-1 rounded-xl border border-input bg-card px-3.5 py-2.5 text-[15px] text-foreground placeholder:text-muted-foreground/70 transition"
           />
-          <button disabled={loading} type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition">
-            Додати
+          <button
+            disabled={loading}
+            type="submit"
+            className="bg-accent text-accent-foreground px-5 py-2.5 rounded-xl text-[15px] font-medium hover:bg-accent-hover active:scale-[0.98] disabled:opacity-50 transition-all duration-200 flex items-center gap-1.5"
+          >
+            <Plus size={18} /> Додати
           </button>
         </form>
       </div>
 
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-        <h2 className="text-xl font-semibold mb-4">Існуючі теги ({tags.length})</h2>
-        <div className="flex flex-wrap gap-3">
+      <div className="bg-card p-6 rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="flex items-baseline gap-2 mb-4">
+          <h2 className="text-lg font-semibold tracking-tight">Усі теги</h2>
+          <span className="text-sm text-muted-foreground">{tags.length}</span>
+        </div>
+        <div className="flex flex-wrap gap-2.5">
           {tags.map(tag => (
-            <div key={tag.id} className="bg-gray-100 px-4 py-2 rounded-full flex items-center gap-2 group">
-              <span className="text-gray-800">{tag.name}</span>
-              <button onClick={() => deleteTag(tag.id)} className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Trash2 size={16} />
+            <div key={tag.id} className="bg-muted pl-4 pr-2.5 py-1.5 rounded-full flex items-center gap-2 group hover:bg-border/50 transition-colors">
+              <span className="text-[15px] text-foreground">{tag.name}</span>
+              <button
+                onClick={() => deleteTag(tag.id)}
+                className="text-muted-foreground/60 hover:text-destructive w-5 h-5 flex items-center justify-center rounded-full hover:bg-destructive-soft transition-colors"
+                aria-label={`Видалити тег ${tag.name}`}
+              >
+                <X size={14} />
               </button>
             </div>
           ))}
           {tags.length === 0 && (
-            <p className="text-gray-500 w-full">Тегів ще немає</p>
+            <p className="text-muted-foreground w-full text-center py-8">Тегів ще немає</p>
           )}
         </div>
       </div>

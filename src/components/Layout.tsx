@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { BookOpen, Tags } from 'lucide-react';
+import { BookOpen, Tags, GraduationCap } from 'lucide-react';
 
 export default function Layout() {
   const location = useLocation();
@@ -10,35 +10,47 @@ export default function Layout() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex font-sans text-gray-900">
+    <div className="min-h-screen bg-background flex font-sans text-foreground antialiased">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-6 border-b border-gray-200">
-          <h1 className="text-2xl font-bold text-blue-600">EnglishAdmin</h1>
+      <aside className="w-64 shrink-0 border-r border-border bg-card/70 backdrop-blur-xl flex flex-col fixed inset-y-0 left-0">
+        <div className="h-20 flex items-center gap-3 px-6">
+          <div className="w-9 h-9 rounded-xl bg-foreground flex items-center justify-center">
+            <GraduationCap size={20} className="text-background" />
+          </div>
+          <span className="text-lg font-semibold tracking-tight">Академія</span>
         </div>
-        <nav className="flex-1 p-4 space-y-2">
+
+        <nav className="flex-1 px-3 py-2 space-y-1">
           {navItems.map((item) => {
-            const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
+            const isActive =
+              location.pathname === item.path ||
+              (item.path !== '/' && location.pathname.startsWith(item.path));
             const Icon = item.icon;
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[15px] transition-all duration-200 ${
+                  isActive
+                    ? 'bg-accent text-accent-foreground font-medium shadow-sm'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 }`}
               >
-                <Icon size={20} />
+                <Icon size={19} strokeWidth={2} />
                 {item.name}
               </Link>
             );
           })}
         </nav>
+
+        <div className="px-6 py-5 text-xs text-muted-foreground">
+          Панель керування
+        </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto p-8">
-        <div className="max-w-5xl mx-auto">
+      <main className="flex-1 ml-64 overflow-auto">
+        <div className="max-w-5xl mx-auto px-8 py-12">
           <Outlet />
         </div>
       </main>

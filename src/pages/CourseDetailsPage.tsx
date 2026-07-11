@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft, Plus, Video, Volume2, ChevronRight, ImageIcon } from 'lucide-react';
 
 export default function CourseDetailsPage() {
   const { courseId } = useParams();
@@ -30,54 +30,67 @@ export default function CourseDetailsPage() {
     }
   }
 
-  if (!course) return <div className="p-8">Завантаження...</div>;
+  if (!course) return <div className="text-muted-foreground py-8">Завантаження…</div>;
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <Link to="/" className="inline-flex items-center text-blue-600 hover:text-blue-800 mb-6 font-medium">
-        <ArrowLeft size={16} className="mr-2" /> Назад до курсів
+    <div>
+      <Link to="/" className="inline-flex items-center text-[15px] text-muted-foreground hover:text-foreground mb-8 transition-colors">
+        <ArrowLeft size={17} className="mr-1.5" /> Курси
       </Link>
-      
-      <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 mb-8 flex items-center gap-6">
-        <div className="w-24 h-24 bg-gray-100 rounded-xl overflow-hidden shrink-0">
-          {course.image_uncolored_url && <img src={course.image_uncolored_url} alt="" className="w-full h-full object-cover" />}
+
+      <div className="bg-card p-6 rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.04)] mb-10 flex items-center gap-6">
+        <div className="w-24 h-24 bg-muted rounded-2xl overflow-hidden shrink-0 flex items-center justify-center">
+          {course.image_uncolored_url ? (
+            <img src={course.image_uncolored_url || "/placeholder.svg"} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <ImageIcon size={28} className="text-muted-foreground/50" />
+          )}
         </div>
         <div>
-          <h1 className="text-3xl font-bold mb-2">{course.title}</h1>
-          <div className="flex gap-4 text-gray-500">
-            <span>Рівень: {course.level}</span>
-            <span>Уроків загалом: {course.total_lessons}</span>
+          <h1 className="text-[28px] font-semibold tracking-tight leading-tight mb-2">{course.title}</h1>
+          <div className="flex gap-2 text-sm">
+            <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground font-medium">{course.level}</span>
+            <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground font-medium">{course.total_lessons} уроків</span>
           </div>
         </div>
       </div>
 
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Уроки ({lessons.length})</h2>
-        <Link 
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-baseline gap-2">
+          <h2 className="text-lg font-semibold tracking-tight">Уроки</h2>
+          <span className="text-sm text-muted-foreground">{lessons.length}</span>
+        </div>
+        <Link
           to={`/courses/${courseId}/lessons/new`}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center"
+          className="bg-accent text-accent-foreground px-4 py-2.5 rounded-xl text-[15px] font-medium hover:bg-accent-hover active:scale-[0.98] transition-all duration-200 flex items-center"
         >
-          <Plus size={18} className="mr-2" /> Додати урок
+          <Plus size={18} className="mr-1.5" /> Додати урок
         </Link>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {lessons.map((lesson, index) => (
-          <Link key={lesson.id} to={`/courses/${courseId}/lessons/${lesson.id}`} className="block bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:border-blue-300 transition">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="font-bold text-lg text-blue-600">Урок {index + 1}: {lesson.title}</h3>
-                <div className="flex gap-4 mt-2 text-sm text-gray-500">
-                  {lesson.video_url && <span>Має відео</span>}
-                  {lesson.audio_url && <span>Має аудіо</span>}
-                </div>
+          <Link
+            key={lesson.id}
+            to={`/courses/${courseId}/lessons/${lesson.id}`}
+            className="group flex items-center gap-4 bg-card p-4 rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 transition-all duration-200"
+          >
+            <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-sm font-semibold text-muted-foreground shrink-0">
+              {index + 1}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-[16px] tracking-tight truncate">{lesson.title}</h3>
+              <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
+                {lesson.video_url && <span className="inline-flex items-center gap-1"><Video size={13} /> Відео</span>}
+                {lesson.audio_url && <span className="inline-flex items-center gap-1"><Volume2 size={13} /> Аудіо</span>}
               </div>
             </div>
+            <ChevronRight size={20} className="text-muted-foreground/40 group-hover:text-muted-foreground transition-colors shrink-0" />
           </Link>
         ))}
         {lessons.length === 0 && (
-          <div className="bg-white p-8 rounded-xl border border-gray-100 text-center text-gray-500">
-            У цьому курсі ще немає уроків.
+          <div className="bg-card p-16 rounded-2xl border border-dashed border-border text-center text-muted-foreground">
+            У цьому курсі ще немає уроків
           </div>
         )}
       </div>
