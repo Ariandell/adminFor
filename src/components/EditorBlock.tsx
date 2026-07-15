@@ -107,8 +107,6 @@ function EditorBlockInner({ onChange, initialData }: EditorProps) {
           title="Підкреслений (Ctrl+U)" className={toolbarBtn}>
           <Underline size={17} />
         </button>
-        <div className="w-px h-5 bg-gray-300 mx-1.5" />
-        <span className="text-xs text-gray-400 select-none">Натисніть «+» ліворуч, щоб додати блок</span>
       </div>
 
       {/* «Стіл» із білим «аркушем», як документ Word */}
