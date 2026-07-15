@@ -1,4 +1,5 @@
 import { supabase } from '../../supabaseClient';
+import { icons, makeUploader, makeDeleteButton, makeCard } from './editorUi';
 
 interface ImageData {
   url?: string;
@@ -15,10 +16,7 @@ export class CustomImageTool {
   private wrapper: HTMLElement | null = null;
 
   static get toolbox() {
-    return {
-      title: 'Зображення',
-      icon: '🖼️'
-    };
+    return { title: 'Зображення', icon: icons.image };
   }
 
   constructor({ data }: { data: ImageData }) {
@@ -45,57 +43,25 @@ export class CustomImageTool {
     input.accept = 'image/*';
     input.style.display = 'none';
 
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = '🖼️ Завантажити зображення';
-    button.style.cssText = `
-      width: 100%;
-      padding: 15px;
-      border: 2px dashed #ccc;
-      background: #f9f9f9;
-      cursor: pointer;
-      border-radius: 8px;
-      font-size: 16px;
-      transition: all 0.3s;
-    `;
-
-    button.addEventListener('mouseover', () => {
-      button.style.borderColor = '#28a745';
-      button.style.background = '#e8f5e8';
-    });
-
-    button.addEventListener('mouseout', () => {
-      button.style.borderColor = '#ccc';
-      button.style.background = '#f9f9f9';
-    });
-
+    const button = makeUploader(icons.image, 'Завантажити зображення');
     button.addEventListener('click', () => input.click());
 
     input.addEventListener('change', async (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      const file = target.files?.[0];
-      if (file) {
-        button.textContent = '⏳ Завантаження...';
-        button.disabled = true;
-        try {
-          const url = await this._uploadFile(file);
-          this.data = {
-            url,
-            file: { url, name: file.name, size: file.size },
-            caption: ''
-          };
-          if (this.wrapper) {
-            this.wrapper.innerHTML = '';
-            this._createImageElement();
-          }
-        } catch (error) {
-          console.error('Upload error:', error);
-          button.textContent = '❌ Помилка завантаження';
-          setTimeout(() => {
-            button.textContent = '🖼️ Завантажити зображення';
-            button.disabled = false;
-          }, 2000);
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      button.querySelector('span:last-child')!.textContent = 'Завантаження...';
+      button.disabled = true;
+      try {
+        const url = await this._uploadFile(file);
+        this.data = { url, file: { url, name: file.name, size: file.size }, caption: '' };
+        if (this.wrapper) {
+          this.wrapper.innerHTML = '';
+          this._createImageElement();
         }
+      } catch (error) {
+        console.error('Upload error:', error);
+        button.querySelector('span:last-child')!.textContent = 'Помилка — спробуйте ще раз';
+        button.disabled = false;
       }
     });
 
@@ -109,44 +75,37 @@ export class CustomImageTool {
     const imageUrl = this.data.url || this.data.file?.url;
     if (!imageUrl) return;
 
-    const container = document.createElement('div');
-    container.style.cssText = `border:1px solid #e1e5e9;border-radius:12px;padding:20px;background:#fff;margin:15px 0;box-shadow:0 2px 8px rgba(0,0,0,.1);`;
+    const container = makeCard();
 
     const img = document.createElement('img');
     img.src = imageUrl;
-    img.style.cssText = `max-width:100%;height:auto;border-radius:8px;margin-bottom:15px;display:block;`;
+    img.style.cssText = 'max-width:100%;height:auto;border-radius:8px;margin-bottom:12px;display:block;';
     img.alt = this.data.caption || '';
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;';
 
     const captionInput = document.createElement('input');
     captionInput.type = 'text';
-    captionInput.placeholder = 'Додайте підпис до зображення...';
+    captionInput.placeholder = 'Підпис до зображення (необовʼязково)';
     captionInput.value = this.data.caption || '';
-    captionInput.style.cssText = `width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;margin-bottom:15px;font-size:14px;`;
-
+    captionInput.style.cssText = 'flex:1;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;outline:none;';
     captionInput.addEventListener('input', (e: Event) => {
       const target = e.target as HTMLInputElement;
       this.data.caption = target.value;
       img.alt = target.value;
     });
 
-    const deleteBtn = document.createElement('button');
-    deleteBtn.textContent = '🗑️ Видалити';
-    deleteBtn.style.cssText = `padding:8px 16px;background:#dc3545;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px;transition:background .3s;`;
-
-    deleteBtn.addEventListener('mouseover', () => { deleteBtn.style.background = '#c82333'; });
-    deleteBtn.addEventListener('mouseout', () => { deleteBtn.style.background = '#dc3545'; });
-
+    const deleteBtn = makeDeleteButton();
     deleteBtn.addEventListener('click', () => {
       this.data = {};
-      if (this.wrapper) {
-        this.wrapper.innerHTML = '';
-        this._createUploader();
-      }
+      if (this.wrapper) { this.wrapper.innerHTML = ''; this._createUploader(); }
     });
 
+    row.appendChild(captionInput);
+    row.appendChild(deleteBtn);
     container.appendChild(img);
-    container.appendChild(captionInput);
-    container.appendChild(deleteBtn);
+    container.appendChild(row);
     this.wrapper.appendChild(container);
   }
 

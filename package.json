@@ -18,6 +18,7 @@
     "@editorjs/quote": "^2.7.6",
     "@editorjs/warning": "^1.4.1",
     "@supabase/supabase-js": "^2.110.0",
+    "editorjs-undo": "^2.0.28",
     "editorjs-youtube-embed": "^1.0.3",
     "lucide-react": "^1.24.0",
     "react": "^19.2.7",

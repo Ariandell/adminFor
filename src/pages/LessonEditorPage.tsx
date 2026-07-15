@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient';
 import EditorBlock from '../components/EditorBlock';
 import { type OutputData } from '@editorjs/editorjs';
 import Select from 'react-select';
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ImageIcon } from 'lucide-react';
 import { useToast } from '../components/Toast';
 
 export default function LessonEditorPage() {
@@ -151,6 +151,33 @@ export default function LessonEditorPage() {
     fetchLessonData();
   }
 
+  async function handleDeleteLesson() {
+    if (!lessonId) return;
+    if (!confirm(`Видалити урок «${title}» разом з його тестами та картками? Цю дію не можна скасувати.`)) return;
+    setLoading(true);
+    try {
+      const { data: cardRows, error: cardsError } = await supabase.from('cards').select('id').eq('lesson_id', lessonId);
+      if (cardsError) throw cardsError;
+      const cardIds = (cardRows || []).map(c => c.id);
+
+      if (cardIds.length > 0) {
+        const { error: tagsError } = await supabase.from('card_tags').delete().in('card_id', cardIds);
+        if (tagsError) throw tagsError;
+        const { error: delCardsError } = await supabase.from('cards').delete().in('id', cardIds);
+        if (delCardsError) throw delCardsError;
+      }
+
+      const { error } = await supabase.from('lessons').delete().eq('id', lessonId);
+      if (error) throw error;
+
+      showToast('Урок видалено', 'success');
+      navigate(`/courses/${courseId}`);
+    } catch (error: any) {
+      showToast('Помилка: ' + error.message, 'error');
+      setLoading(false);
+    }
+  }
+
   if (!initialDataLoaded) return <div className="p-8">Завантаження...</div>;
 
   return (
@@ -170,30 +197,35 @@ export default function LessonEditorPage() {
 
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">Контент уроку</label>
-          <p className="text-xs text-gray-400 mb-3">
-            Використовуйте «+» або «/» щоб додати блоки: текст, заголовок, список, цитату, зображення, аудіо, YouTube відео, тест та інше.
-          </p>
           <EditorBlock initialData={content} onChange={setContent} />
         </div>
 
-        <button disabled={loading} onClick={handleSaveLesson}
-          className="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 transition text-lg">
-          {loading ? 'Збереження...' : 'Зберегти урок'}
-        </button>
+        <div className="flex justify-between items-center">
+          <button disabled={loading} onClick={handleSaveLesson}
+            className="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 transition text-lg">
+            {loading ? 'Збереження...' : 'Зберегти урок'}
+          </button>
+          {lessonId && (
+            <button disabled={loading} onClick={handleDeleteLesson} title="Видалити урок"
+              className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg disabled:opacity-50 transition">
+              <Trash2 size={18} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Cards Section */}
       {lessonId && (
         <div>
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Картки (Слова)</h2>
-            <button onClick={() => setShowCardForm(!showCardForm)} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center">
+            <h2 className="text-2xl font-bold">Картки</h2>
+            <button onClick={() => setShowCardForm(!showCardForm)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center">
               <Plus size={18} className="mr-2" /> Додати картку
             </button>
           </div>
 
           {showCardForm && (
-            <form onSubmit={handleAddCard} className="bg-green-50 p-6 rounded-2xl border border-green-200 mb-8 space-y-4">
+            <form onSubmit={handleAddCard} className="bg-blue-50/50 p-6 rounded-2xl border border-blue-200 mb-8 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Оригінал слова</label>
@@ -218,18 +250,18 @@ export default function LessonEditorPage() {
 
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Сіре фото (Gray)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Чорно-біле фото</label>
                   <input type="file" accept="image/*" onChange={e => setGrayFile(e.target.files?.[0] || null)} className="w-full text-sm" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Кольорове фото (Color)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Кольорове фото</label>
                   <input type="file" accept="image/*" onChange={e => setColorFile(e.target.files?.[0] || null)} className="w-full text-sm" />
                 </div>
               </div>
 
               <div className="flex justify-end gap-2 mt-4">
                 <button type="button" onClick={() => setShowCardForm(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Скасувати</button>
-                <button disabled={loading} type="submit" className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 disabled:opacity-50">
+                <button disabled={loading} type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50">
                   {loading ? 'Збереження...' : 'Зберегти картку'}
                 </button>
               </div>
@@ -243,7 +275,7 @@ export default function LessonEditorPage() {
                   {card.image_color_url ? (
                     <img src={card.image_color_url} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">No img</div>
+                    <div className="w-full h-full flex items-center justify-center text-gray-300"><ImageIcon size={20} /></div>
                   )}
                 </div>
                 <div className="flex-1">
