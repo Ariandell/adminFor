@@ -1,5 +1,5 @@
-import { supabase } from '../../supabaseClient';
 import { icons, makeUploader, makeDeleteButton, makeCard } from './editorUi';
+import { uploadAudio } from './r2Upload';
 
 interface AudioData {
   url?: string;
@@ -100,11 +100,8 @@ export class CustomAudioTool {
   }
 
   private async _uploadFile(file: File): Promise<string> {
-    const path = `audio/${Date.now()}_${file.name}`;
-    const { error } = await supabase.storage.from('course-images').upload(path, file);
-    if (error) throw error;
-    const { data: { publicUrl } } = supabase.storage.from('course-images').getPublicUrl(path);
-    return publicUrl;
+    // Аудіо зберігаємо в Cloudflare R2 через Worker (Supabase лишаємо для фото/тексту).
+    return uploadAudio(file);
   }
 
   save(): AudioData {
