@@ -141,7 +141,7 @@ export default function CoursesPage() {
         <form onSubmit={saveCourse} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Назва курсу</label>
-            <input required value={title} onChange={e => setTitle(e.target.value)} type="text" placeholder="ЯПОНСЬКА (日本語)" className="w-full border rounded-lg p-2" />
+            <input required value={title} onChange={e => setTitle(e.target.value)} type="text" placeholder="Наприклад: Англійська" className="w-full border rounded-lg p-2" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
