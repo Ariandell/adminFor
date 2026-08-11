@@ -1,5 +1,5 @@
 // Спільні DOM-хелпери для кастомних інструментів Editor.js (аудіо, зображення).
-// Тримають єдиний стиль із рештою адмінки: акцент #2563eb (blue-600), нейтральні межі.
+// Тримають єдиний стиль із рештою адмінки: акцент #9069C8 (lavender-500), нейтральні межі.
 
 const svg = (paths: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
@@ -11,23 +11,23 @@ export const icons = {
 };
 
 /** Кнопка-завантажувач: пунктирна рамка на всю ширину, наведення — акцентний колір. */
-export function makeUploader(iconSvg: string, label: string, accent = '#2563eb'): HTMLButtonElement {
+export function makeUploader(iconSvg: string, label: string, accent = '#9069C8'): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
   button.innerHTML = `<span style="display:inline-flex">${iconSvg}</span><span>${label}</span>`;
   button.style.cssText =
     'width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:16px;' +
-    'border:2px dashed #d1d5db;background:#f9fafb;color:#6b7280;cursor:pointer;border-radius:12px;' +
+    'border:2px dashed #D9C4F1;background:#F6F1FC;color:#6C6578;cursor:pointer;border-radius:12px;' +
     'font-size:15px;font-weight:500;transition:all .2s;';
   button.addEventListener('mouseover', () => {
     button.style.borderColor = accent;
-    button.style.background = '#eff6ff';
+    button.style.background = '#ECE1FA';
     button.style.color = accent;
   });
   button.addEventListener('mouseout', () => {
-    button.style.borderColor = '#d1d5db';
-    button.style.background = '#f9fafb';
-    button.style.color = '#6b7280';
+    button.style.borderColor = '#D9C4F1';
+    button.style.background = '#F6F1FC';
+    button.style.color = '#6C6578';
   });
   return button;
 }
@@ -40,9 +40,9 @@ export function makeDeleteButton(): HTMLButtonElement {
   btn.innerHTML = icons.trash;
   btn.style.cssText =
     'display:inline-flex;align-items:center;justify-content:center;padding:8px;border:none;' +
-    'background:transparent;color:#9ca3af;cursor:pointer;border-radius:8px;transition:all .2s;';
-  btn.addEventListener('mouseover', () => { btn.style.color = '#ef4444'; btn.style.background = '#fef2f2'; });
-  btn.addEventListener('mouseout', () => { btn.style.color = '#9ca3af'; btn.style.background = 'transparent'; });
+    'background:transparent;color:#A79FB0;cursor:pointer;border-radius:8px;transition:all .2s;';
+  btn.addEventListener('mouseover', () => { btn.style.color = '#DD6883'; btn.style.background = '#FDF0F3'; });
+  btn.addEventListener('mouseout', () => { btn.style.color = '#A79FB0'; btn.style.background = 'transparent'; });
   return btn;
 }
 
@@ -50,6 +50,6 @@ export function makeDeleteButton(): HTMLButtonElement {
 export function makeCard(): HTMLDivElement {
   const container = document.createElement('div');
   container.style.cssText =
-    'border:1px solid #e5e7eb;border-radius:12px;padding:16px;background:#fff;margin:12px 0;';
+    'border:1px solid #ECE1FA;border-radius:12px;padding:16px;background:#fff;margin:12px 0;';
   return container;
 }

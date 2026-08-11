@@ -1,5 +1,83 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: "Nunito", ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* Тепла паперова основа */
+  --color-paper: #FBF7F1;
+  --color-paper-100: #F3EDE3;
+  --color-paper-200: #EAE1D2;
+
+  /* Текст */
+  --color-ink: #332E3D;
+  --color-ink-600: #6C6578;
+  --color-ink-400: #A79FB0;
+
+  /* Основний акцент — пастельна лаванда */
+  --color-lavender-50: #F6F1FC;
+  --color-lavender-100: #ECE1FA;
+  --color-lavender-200: #D9C4F1;
+  --color-lavender-300: #C2A2E7;
+  --color-lavender-400: #AA86DB;
+  --color-lavender-500: #9069C8;
+  --color-lavender-600: #7854AC;
+  --color-lavender-700: #614390;
+
+  /* Пастельна м'ята — успіх / позитив */
+  --color-mint-50: #EEFBF3;
+  --color-mint-100: #DBF4E5;
+  --color-mint-200: #B9E9CD;
+  --color-mint-300: #92DAB1;
+  --color-mint-400: #6BC896;
+  --color-mint-500: #4FAE7E;
+  --color-mint-600: #398F65;
+  --color-mint-700: #2C7350;
+
+  /* Пастельний персик — другорядний акцент */
+  --color-peach-50: #FFF3EA;
+  --color-peach-100: #FFE3D0;
+  --color-peach-200: #FFCBA6;
+  --color-peach-300: #FCB081;
+  --color-peach-400: #F1975E;
+  --color-peach-500: #E38C51;
+  --color-peach-600: #C06E3B;
+  --color-peach-700: #9C562D;
+
+  /* Пастельне масло — теплий акцент */
+  --color-butter-50: #FFFAEA;
+  --color-butter-100: #FFF0BF;
+  --color-butter-200: #FEE38C;
+  --color-butter-300: #FBDA76;
+  --color-butter-400: #EFC24A;
+  --color-butter-500: #DFAF2C;
+  --color-butter-600: #B98A1C;
+  --color-butter-700: #916A16;
+
+  /* Пастельний рум'янець — небезпека / видалення */
+  --color-blush-50: #FDF0F3;
+  --color-blush-100: #FADCE2;
+  --color-blush-200: #F4BCC8;
+  --color-blush-300: #EFA0B0;
+  --color-blush-400: #E68196;
+  --color-blush-500: #DD6883;
+  --color-blush-600: #C24F6B;
+  --color-blush-700: #9E3E55;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Теплі, м'якші тіні замість стандартних сірих Tailwind */
+.shadow-cozy {
+  box-shadow: 0 1px 2px rgba(51, 46, 61, 0.05), 0 10px 24px -12px rgba(51, 46, 61, 0.16);
+}
+.shadow-cozy-lg {
+  box-shadow: 0 2px 6px rgba(51, 46, 61, 0.06), 0 20px 40px -16px rgba(51, 46, 61, 0.22);
+}
+
 @keyframes slideIn {
   from {
     opacity: 0;
@@ -14,7 +92,7 @@
 /* ─────────── Word-подібний «аркуш» редактора уроку ─────────── */
 .word-sheet {
   max-width: 740px;
-  color: #1f2937;
+  color: var(--color-ink);
   font-size: 16px;
   line-height: 1.7;
 }

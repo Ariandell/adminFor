@@ -42,9 +42,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   };
 
   const colorMap: Record<ToastType, { bg: string; border: string; text: string; icon: string }> = {
-    success: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-800', icon: 'bg-emerald-500' },
-    error:   { bg: 'bg-red-50',     border: 'border-red-200',     text: 'text-red-800',     icon: 'bg-red-500' },
-    info:    { bg: 'bg-blue-50',    border: 'border-blue-200',    text: 'text-blue-800',    icon: 'bg-blue-500' },
+    success: { bg: 'bg-mint-50',     border: 'border-mint-200',     text: 'text-mint-700',     icon: 'bg-mint-500' },
+    error:   { bg: 'bg-blush-50',    border: 'border-blush-200',    text: 'text-blush-700',    icon: 'bg-blush-500' },
+    info:    { bg: 'bg-lavender-50', border: 'border-lavender-200', text: 'text-lavender-700', icon: 'bg-lavender-500' },
   };
 
   return (

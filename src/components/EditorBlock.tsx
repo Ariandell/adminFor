@@ -75,7 +75,7 @@ function EditorBlockInner({ onChange, initialData }: EditorProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const toolbarBtn = 'p-2 rounded-md text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-sm disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none transition';
+  const toolbarBtn = 'p-2 rounded-md text-ink-600 hover:bg-white hover:text-lavender-600 hover:shadow-sm disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none transition';
 
   // Інлайн-форматування виділеного тексту, як у Word (Ctrl+B / Ctrl+I / Ctrl+U теж працюють)
   const format = (command: 'bold' | 'italic' | 'underline') => {
@@ -83,9 +83,9 @@ function EditorBlockInner({ onChange, initialData }: EditorProps) {
   };
 
   return (
-    <div className="rounded-xl overflow-hidden border border-gray-200 bg-gray-100">
+    <div className="rounded-xl overflow-hidden border border-lavender-100 bg-paper-200">
       {/* Панель-стрічка у стилі Word — липка при прокрутці */}
-      <div className="sticky top-0 z-10 flex items-center gap-1 px-3 py-2 bg-gray-50/95 backdrop-blur border-b border-gray-200">
+      <div className="sticky top-0 z-10 flex items-center gap-1 px-3 py-2 bg-paper-100/95 backdrop-blur border-b border-lavender-100">
         <button type="button" disabled={!undoReady} onClick={() => undoRef.current?.undo()}
           title="Скасувати (Ctrl+Z)" className={toolbarBtn}>
           <Undo2 size={17} />
@@ -94,7 +94,7 @@ function EditorBlockInner({ onChange, initialData }: EditorProps) {
           title="Повторити (Ctrl+Y)" className={toolbarBtn}>
           <Redo2 size={17} />
         </button>
-        <div className="w-px h-5 bg-gray-300 mx-1.5" />
+        <div className="w-px h-5 bg-lavender-200 mx-1.5" />
         <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => format('bold')}
           title="Жирний (Ctrl+B)" className={toolbarBtn}>
           <Bold size={17} />
@@ -113,7 +113,7 @@ function EditorBlockInner({ onChange, initialData }: EditorProps) {
       <div className="p-6 sm:p-8 overflow-auto max-h-[70vh]">
         <div
           ref={holderRef}
-          className="word-sheet mx-auto bg-white rounded-sm shadow-md ring-1 ring-black/5 min-h-[500px] px-10 py-12"
+          className="word-sheet mx-auto bg-white rounded-sm shadow-cozy-lg ring-1 ring-black/5 min-h-[500px] px-10 py-12"
         />
       </div>
     </div>

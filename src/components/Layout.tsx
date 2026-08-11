@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { BookOpen, Tags } from 'lucide-react';
+import { BookOpen, Tags, Sparkles } from 'lucide-react';
 
 export default function Layout() {
   const location = useLocation();
@@ -10,13 +10,21 @@ export default function Layout() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex font-sans text-gray-900">
+    <div className="min-h-screen flex font-sans text-ink bg-paper">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-6 border-b border-gray-200">
-          <h1 className="text-2xl font-bold text-blue-600">EnglishAdmin</h1>
+      <aside className="w-64 bg-white border-r border-lavender-100 flex flex-col">
+        <div className="p-6 border-b border-lavender-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-lavender-100 text-lavender-600 flex items-center justify-center shrink-0">
+              <Sparkles size={20} />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-lg font-extrabold text-lavender-600 leading-tight truncate">EnglishAdmin</h1>
+              <p className="text-xs text-ink-400">Панель керування</p>
+            </div>
+          </div>
         </div>
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-4 space-y-1.5">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
             const Icon = item.icon;
@@ -24,21 +32,24 @@ export default function Layout() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-colors ${
+                  isActive ? 'bg-lavender-100 text-lavender-700' : 'text-ink-600 hover:bg-paper-100'
                 }`}
               >
-                <Icon size={20} />
+                <Icon size={19} />
                 {item.name}
               </Link>
             );
           })}
         </nav>
+        <div className="p-6 text-xs text-ink-400 border-t border-lavender-100">
+          EnglishAdmin · курси, уроки та слова
+        </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto p-8">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <Outlet />
         </div>
       </main>

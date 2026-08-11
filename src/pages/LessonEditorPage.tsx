@@ -4,8 +4,14 @@ import { supabase } from '../supabaseClient';
 import EditorBlock from '../components/EditorBlock';
 import { type OutputData } from '@editorjs/editorjs';
 import Select from 'react-select';
-import { ArrowLeft, Plus, Trash2, ImageIcon } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ImageIcon, LayoutGrid } from 'lucide-react';
 import { useToast } from '../components/Toast';
+import Card, { cardClass } from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import IconButton from '../components/ui/IconButton';
+import EmptyState from '../components/ui/EmptyState';
+import FileDropzone from '../components/ui/FileDropzone';
+import Badge from '../components/ui/Badge';
 
 export default function LessonEditorPage() {
   const { courseId, lessonId } = useParams();
@@ -178,67 +184,65 @@ export default function LessonEditorPage() {
     }
   }
 
-  if (!initialDataLoaded) return <div className="p-8">Завантаження...</div>;
+  if (!initialDataLoaded) return <div className="p-8 text-ink-400">Завантаження...</div>;
 
   return (
-    <div className="max-w-4xl mx-auto pb-20">
-      <Link to={`/courses/${courseId}`} className="inline-flex items-center text-blue-600 hover:text-blue-800 mb-6 font-medium">
+    <div className="max-w-5xl mx-auto pb-20">
+      <Link to={`/courses/${courseId}`} className="inline-flex items-center text-lavender-600 hover:text-lavender-700 mb-6 font-semibold">
         <ArrowLeft size={16} className="mr-2" /> Назад до курсу
       </Link>
 
       <h1 className="text-3xl font-bold mb-8">{lessonId ? 'Редагувати урок' : 'Створити новий урок'}</h1>
 
       {/* Lesson Form */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+      <Card className="mb-8">
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Назва уроку</label>
-          <input required value={title} onChange={e => setTitle(e.target.value)} type="text" className="w-full border rounded-lg p-2 text-lg" placeholder="Назва уроку..." />
+          <label className="block text-sm font-medium text-ink-600 mb-1">Назва уроку</label>
+          <input required value={title} onChange={e => setTitle(e.target.value)} type="text" className="w-full border border-lavender-200 rounded-lg p-2 text-lg focus:outline-none focus:ring-2 focus:ring-lavender-300" placeholder="Назва уроку..." />
         </div>
 
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Контент уроку</label>
+          <label className="block text-sm font-medium text-ink-600 mb-2">Контент уроку</label>
           <EditorBlock initialData={content} onChange={setContent} />
         </div>
 
         <div className="flex justify-between items-center">
-          <button disabled={loading} onClick={handleSaveLesson}
-            className="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 transition text-lg">
+          <Button disabled={loading} onClick={handleSaveLesson}>
             {loading ? 'Збереження...' : 'Зберегти урок'}
-          </button>
+          </Button>
           {lessonId && (
-            <button disabled={loading} onClick={handleDeleteLesson} title="Видалити урок"
-              className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg disabled:opacity-50 transition">
+            <IconButton variant="danger" disabled={loading} onClick={handleDeleteLesson} title="Видалити урок">
               <Trash2 size={18} />
-            </button>
+            </IconButton>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Cards Section */}
       {lessonId && (
         <div>
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">Картки</h2>
-            <button onClick={() => setShowCardForm(!showCardForm)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center">
-              <Plus size={18} className="mr-2" /> Додати картку
-            </button>
+            <Button size="sm" onClick={() => setShowCardForm(!showCardForm)}>
+              <Plus size={18} /> Додати картку
+            </Button>
           </div>
 
           {showCardForm && (
-            <form onSubmit={handleAddCard} className="bg-blue-50/50 p-6 rounded-2xl border border-blue-200 mb-8 space-y-4">
+            <form onSubmit={handleAddCard} className={cardClass('accent', 'mb-8 space-y-4')}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Оригінал слова</label>
-                  <input required value={newCardWord} onChange={e => setNewCardWord(e.target.value)} type="text" className="w-full border rounded-lg p-2" />
+                  <label className="block text-sm font-medium text-ink-600 mb-1">Оригінал слова</label>
+                  <input required value={newCardWord} onChange={e => setNewCardWord(e.target.value)} type="text" className="w-full border border-lavender-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-lavender-300" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Переклад</label>
-                  <input required value={newCardTrans} onChange={e => setNewCardTrans(e.target.value)} type="text" className="w-full border rounded-lg p-2" />
+                  <label className="block text-sm font-medium text-ink-600 mb-1">Переклад</label>
+                  <input required value={newCardTrans} onChange={e => setNewCardTrans(e.target.value)} type="text" className="w-full border border-lavender-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-lavender-300" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Теги</label>
+                <label className="block text-sm font-medium text-ink-600 mb-1">Теги</label>
                 <Select
                   isMulti
                   options={tagsOptions}
@@ -249,55 +253,49 @@ export default function LessonEditorPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4 pt-2">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Чорно-біле фото</label>
-                  <input type="file" accept="image/*" onChange={e => setGrayFile(e.target.files?.[0] || null)} className="w-full text-sm" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Кольорове фото</label>
-                  <input type="file" accept="image/*" onChange={e => setColorFile(e.target.files?.[0] || null)} className="w-full text-sm" />
-                </div>
+                <FileDropzone label="Чорно-біле фото" file={grayFile} onChange={setGrayFile} />
+                <FileDropzone label="Кольорове фото" file={colorFile} onChange={setColorFile} />
               </div>
 
               <div className="flex justify-end gap-2 mt-4">
-                <button type="button" onClick={() => setShowCardForm(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Скасувати</button>
-                <button disabled={loading} type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50">
+                <Button type="button" variant="ghost" onClick={() => setShowCardForm(false)}>Скасувати</Button>
+                <Button disabled={loading} type="submit">
                   {loading ? 'Збереження...' : 'Зберегти картку'}
-                </button>
+                </Button>
               </div>
             </form>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {cards.map(card => (
-              <div key={card.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex gap-4">
-                <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+              <Card key={card.id} className="p-4 flex gap-4">
+                <div className="w-16 h-16 bg-paper-100 rounded-lg overflow-hidden shrink-0">
                   {card.image_color_url ? (
                     <img src={card.image_color_url} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-300"><ImageIcon size={20} /></div>
+                    <div className="w-full h-full flex items-center justify-center text-lavender-300"><ImageIcon size={20} /></div>
                   )}
                 </div>
-                <div className="flex-1">
-                  <div className="flex justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start gap-2">
                     <h3 className="font-bold text-lg">{card.original_word}</h3>
-                    <button onClick={() => deleteCard(card.id)} className="text-gray-400 hover:text-red-500">
+                    <IconButton variant="danger" className="p-1 -mt-1 -mr-1 shrink-0" onClick={() => deleteCard(card.id)}>
                       <Trash2 size={16} />
-                    </button>
+                    </IconButton>
                   </div>
-                  <p className="text-gray-600 text-sm">{card.translation}</p>
+                  <p className="text-ink-600 text-sm">{card.translation}</p>
                   <div className="flex flex-wrap gap-1 mt-2">
                     {card.card_tags?.map((ct: any) => (
-                      <span key={ct.tags?.id} className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-full">
-                        {ct.tags?.name}
-                      </span>
+                      ct.tags && <Badge key={ct.tags.id} label={ct.tags.name} />
                     ))}
                   </div>
                 </div>
-              </div>
+              </Card>
             ))}
             {cards.length === 0 && !showCardForm && (
-              <p className="text-gray-500 text-sm py-4 col-span-2 text-center border-2 border-dashed rounded-xl p-8">Картки ще не додано</p>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <EmptyState icon={<LayoutGrid size={28} />} title="Картки ще не додано" />
+              </div>
             )}
           </div>
         </div>
