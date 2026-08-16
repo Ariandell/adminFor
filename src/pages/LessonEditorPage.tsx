@@ -6,6 +6,7 @@ import { type OutputData } from '@editorjs/editorjs';
 import Select from 'react-select';
 import { ArrowLeft, Plus, Trash2, ImageIcon, LayoutGrid } from 'lucide-react';
 import { useToast } from '../components/Toast';
+import { cardTranslation, normalizeCardWord, parseCardText } from '../lib/cardText';
 import Card, { cardClass } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import IconButton from '../components/ui/IconButton';
@@ -53,9 +54,9 @@ export default function LessonEditorPage() {
       const { data } = await supabase
         .from('cards')
         .select('id, original_word, translation, lessons(title, courses(title))')
-        .ilike('original_word', word)
-        .limit(1);
-      setDuplicateCard(data?.[0] || null);
+        .ilike('original_word', `${word}%`)
+        .limit(20);
+      setDuplicateCard((data || []).find((card: any) => normalizeCardWord(card.original_word) === normalizeCardWord(word)) || null);
     }, 300);
     return () => window.clearTimeout(timer);
   }, [newCardWord]);
@@ -141,8 +142,8 @@ export default function LessonEditorPage() {
 
       const { data: newCard, error: cardError } = await supabase.from('cards').insert([{
         lesson_id: lessonId,
-        original_word: newCardWord,
-        translation: newCardTrans,
+        original_word: parseCardText(newCardWord).word,
+        translation: cardTranslation(newCardWord, newCardTrans),
         image_gray_url: grayUrl,
         image_color_url: colorUrl
       }]).select().single();

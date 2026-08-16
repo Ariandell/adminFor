@@ -8,6 +8,7 @@ import IconButton from '../components/ui/IconButton';
 import Badge from '../components/ui/Badge';
 import EmptyState from '../components/ui/EmptyState';
 import PageHeader from '../components/ui/PageHeader';
+import { cardTranslation, normalizeCardWord, parseCardText } from '../lib/cardText';
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 type CardType = 'standard' | 'irregular_verb';
@@ -37,11 +38,12 @@ export default function CardsPage() {
   useEffect(() => { fetchCards(); }, []);
 
   const duplicate = useMemo(() => {
-    const needle = (form.card_type === 'irregular_verb' ? form.infinitive : form.original_word).trim().toLocaleLowerCase();
+    const rawWord = form.card_type === 'irregular_verb' ? form.infinitive : form.original_word;
+    const needle = normalizeCardWord(rawWord);
     if (!needle) return null;
     return cards.find(card => card.id !== form.id &&
       (card.card_type || 'standard') === form.card_type &&
-      String(form.card_type === 'irregular_verb' ? (card.infinitive || card.original_word) : card.original_word).trim().toLocaleLowerCase() === needle &&
+      normalizeCardWord(String(form.card_type === 'irregular_verb' ? (card.infinitive || card.original_word) : card.original_word)) === needle &&
       (card.level || 'A1') === form.level);
   }, [cards, form]);
 
@@ -60,11 +62,12 @@ export default function CardsPage() {
     setLoading(true);
     const payload = {
       card_type: form.card_type, level: form.level,
-      original_word: form.card_type === 'irregular_verb' ? form.infinitive : form.original_word.trim(),
-      translation: form.translation.trim(), transcription: form.transcription || null, example: form.example || null,
-      infinitive: form.card_type === 'irregular_verb' ? form.infinitive.trim() : null,
-      past_simple: form.card_type === 'irregular_verb' ? form.past_simple.trim() : null,
-      past_participle: form.card_type === 'irregular_verb' ? form.past_participle.trim() : null,
+      original_word: parseCardText(form.card_type === 'irregular_verb' ? form.infinitive : form.original_word).word,
+      translation: cardTranslation(form.card_type === 'irregular_verb' ? form.infinitive : form.original_word, form.translation),
+      transcription: form.transcription || null, example: form.example || null,
+      infinitive: form.card_type === 'irregular_verb' ? parseCardText(form.infinitive).word : null,
+      past_simple: form.card_type === 'irregular_verb' ? parseCardText(form.past_simple).word : null,
+      past_participle: form.card_type === 'irregular_verb' ? parseCardText(form.past_participle).word : null,
     };
     const query = form.id ? supabase.from('cards').update(payload).eq('id', form.id) : supabase.from('cards').insert([payload]);
     const { error } = await query;
@@ -95,8 +98,8 @@ export default function CardsPage() {
 
       {showForm && <Card tone="accent" className="mb-5"><form onSubmit={save} className="space-y-4">
         <div className="flex items-center justify-between"><h2 className="text-lg font-bold">{form.id ? 'Редагування картки' : 'Нова картка'}</h2><button type="button" onClick={() => setShowForm(false)} className="text-ink-400">Закрити</button></div>
-        <div className="grid md:grid-cols-3 gap-3"><select value={form.card_type} onChange={e => setForm({ ...form, card_type: e.target.value as CardType })} className="field"><option value="standard">Звичайна картка</option><option value="irregular_verb">Неправильне дієслово</option></select><select value={form.level} onChange={e => setForm({ ...form, level: e.target.value })} className="field">{LEVELS.map(x => <option key={x}>{x}</option>)}</select><input required value={form.translation} onChange={e => setForm({ ...form, translation: e.target.value })} placeholder="Переклад" className="field" /></div>
-        {form.card_type === 'standard' ? <input required value={form.original_word} onChange={e => setForm({ ...form, original_word: e.target.value })} placeholder="Англійське слово або фраза" className="field" /> : <div className="grid md:grid-cols-3 gap-3"><input required value={form.infinitive} onChange={e => setForm({ ...form, infinitive: e.target.value })} placeholder="Infinitive" className="field" /><input required value={form.past_simple} onChange={e => setForm({ ...form, past_simple: e.target.value })} placeholder="Past Simple" className="field" /><input required value={form.past_participle} onChange={e => setForm({ ...form, past_participle: e.target.value })} placeholder="Past Participle" className="field" /></div>}
+        <div className="grid md:grid-cols-3 gap-3"><select value={form.card_type} onChange={e => setForm({ ...form, card_type: e.target.value as CardType })} className="field"><option value="standard">Звичайна картка</option><option value="irregular_verb">Неправильне дієслово</option></select><select value={form.level} onChange={e => setForm({ ...form, level: e.target.value })} className="field">{LEVELS.map(x => <option key={x}>{x}</option>)}</select><input value={form.translation} onChange={e => setForm({ ...form, translation: e.target.value })} placeholder="Переклад (необов'язково)" className="field" /></div>
+        {form.card_type === 'standard' ? <input required value={form.original_word} onChange={e => setForm({ ...form, original_word: e.target.value })} placeholder="Англійське слово або фраза, наприклад book (бук)" className="field" /> : <div className="grid md:grid-cols-3 gap-3"><input required value={form.infinitive} onChange={e => setForm({ ...form, infinitive: e.target.value })} placeholder="Infinitive" className="field" /><input required value={form.past_simple} onChange={e => setForm({ ...form, past_simple: e.target.value })} placeholder="Past Simple" className="field" /><input required value={form.past_participle} onChange={e => setForm({ ...form, past_participle: e.target.value })} placeholder="Past Participle" className="field" /></div>}
         <div className="grid md:grid-cols-2 gap-3"><input value={form.transcription} onChange={e => setForm({ ...form, transcription: e.target.value })} placeholder="Транскрипція" className="field" /><input value={form.example} onChange={e => setForm({ ...form, example: e.target.value })} placeholder="Приклад речення" className="field" /></div>
         {duplicate && <div className="rounded-xl bg-blush-100 border border-blush-200 p-3 text-sm text-blush-700"><strong>Дублікат:</strong> {duplicate.original_word} — {duplicate.translation} · {duplicate.level || 'A1'}</div>}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setShowForm(false)}>Скасувати</Button><Button disabled={loading || !!duplicate} type="submit">Зберегти</Button></div>
