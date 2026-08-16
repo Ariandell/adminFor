@@ -30,12 +30,14 @@ alter table public.cards
   add column if not exists example text,
   add column if not exists audio_url text;
 
-create unique index if not exists cards_unique_standard_word
-  on public.cards (lower(trim(original_word)), level)
-  where card_type = 'standard';
-create unique index if not exists cards_unique_irregular_verb
-  on public.cards (lower(trim(coalesce(infinitive, original_word))), level)
-  where card_type = 'irregular_verb';
+-- The same word may intentionally appear in multiple lessons. Duplicates are
+-- surfaced in the admin UI, so do not enforce uniqueness at database level.
+drop index if exists public.cards_unique_standard_word;
+drop index if exists public.cards_unique_irregular_verb;
+create index if not exists cards_word_level_lookup
+  on public.cards (lower(trim(original_word)), level);
+create index if not exists cards_infinitive_level_lookup
+  on public.cards (lower(trim(coalesce(infinitive, original_word))), level);
 
 create table if not exists public.homework (
   id uuid primary key default gen_random_uuid(),
