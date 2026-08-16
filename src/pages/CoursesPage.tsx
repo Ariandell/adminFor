@@ -8,6 +8,7 @@ import Button from '../components/ui/Button';
 import IconButton from '../components/ui/IconButton';
 import EmptyState from '../components/ui/EmptyState';
 import FileDropzone from '../components/ui/FileDropzone';
+import PageHeader from '../components/ui/PageHeader';
 
 export default function CoursesPage() {
   const { showToast } = useToast();
@@ -159,7 +160,9 @@ export default function CoursesPage() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-8">
+    <div>
+      <PageHeader title="Курси" description="Основні та додаткові навчальні програми" />
+      <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-8">
       {/* Form Section */}
       <Card tone={editingCourse ? 'accent' : 'default'} className="h-fit">
         <h2 className="text-2xl font-bold mb-6">{editingCourse ? `Редагувати: ${editingCourse.title}` : 'Створити новий курс'}</h2>
@@ -265,6 +268,7 @@ export default function CoursesPage() {
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ import Button from '../components/ui/Button';
 import IconButton from '../components/ui/IconButton';
 import EmptyState from '../components/ui/EmptyState';
 import Badge, { pastelFor } from '../components/ui/Badge';
+import PageHeader from '../components/ui/PageHeader';
 
 function wordsLabel(n: number) {
   const mod10 = n % 10;
@@ -134,7 +135,9 @@ export default function TagsPage() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-8">
+    <div>
+      <PageHeader title="Теги" description="Групуйте слова й швидко знаходьте пов’язані картки" />
+      <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-8">
       <Card className="h-fit">
         <h2 className="text-xl font-semibold mb-4">{editingId ? 'Редагувати тег' : 'Новий тег'}</h2>
         <form onSubmit={saveTag} className="flex flex-col gap-3">
@@ -218,6 +221,7 @@ export default function TagsPage() {
             <EmptyState icon={<TagsIcon size={28} />} title="Тегів ще немає" />
           )}
         </div>
+      </div>
       </div>
     </div>
   );
