@@ -48,7 +48,7 @@ export default function LessonEditorPage() {
   }, [lessonId]);
 
   useEffect(() => {
-    const word = newCardWord.trim();
+    const word = parseCardText(newCardWord).word;
     if (word.length < 2) { setDuplicateCard(null); return; }
     const timer = window.setTimeout(async () => {
       const { data } = await supabase
@@ -257,7 +257,7 @@ export default function LessonEditorPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-ink-600 mb-1">Переклад</label>
-                  <input required value={newCardTrans} onChange={e => setNewCardTrans(e.target.value)} type="text" className="field" />
+                  <input value={newCardTrans} onChange={e => setNewCardTrans(e.target.value)} type="text" placeholder="Переклад або залиште порожнім, якщо він у дужках" className="field" />
                 </div>
               </div>
 
