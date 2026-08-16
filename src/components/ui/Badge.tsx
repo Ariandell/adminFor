@@ -32,9 +32,9 @@ interface BadgeProps {
 export default function Badge({ label, seed, className = '' }: BadgeProps) {
   const hue = pastelFor(seed ?? label);
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${hue.bg} ${hue.text} ${className}`}>
+    <span className={`inline-flex min-w-0 items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${hue.bg} ${hue.text} ${className}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${hue.dot}`} />
-      {label}
+      <span className="truncate">{label}</span>
     </span>
   );
 }

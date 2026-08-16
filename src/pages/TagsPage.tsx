@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { ChevronRight, Pencil, Trash2, Tags as TagsIcon } from 'lucide-react';
+import { ChevronRight, Pencil, Search, Trash2, X, Tags as TagsIcon } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import IconButton from '../components/ui/IconButton';
 import EmptyState from '../components/ui/EmptyState';
-import Badge, { pastelFor } from '../components/ui/Badge';
+import { pastelFor } from '../components/ui/Badge';
 import PageHeader from '../components/ui/PageHeader';
 
 function wordsLabel(n: number) {
@@ -24,6 +24,7 @@ export default function TagsPage() {
   const [name, setName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [query, setQuery] = useState('');
 
   const [expandedTagId, setExpandedTagId] = useState<string | null>(null);
   const [wordsByTag, setWordsByTag] = useState<Record<string, any[]>>({});
@@ -134,11 +135,15 @@ export default function TagsPage() {
     }
   }
 
+  const filteredTags = tags
+    .filter(tag => tag.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name, 'uk'));
+
   return (
     <div>
       <PageHeader title="Теги" description="Групуйте слова й швидко знаходьте пов’язані картки" />
-      <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-8">
-      <Card className="h-fit">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[340px_1fr]">
+      <Card className="h-fit lg:sticky lg:top-6">
         <h2 className="text-xl font-semibold mb-4">{editingId ? 'Редагувати тег' : 'Новий тег'}</h2>
         <form onSubmit={saveTag} className="flex flex-col gap-3">
           <input
@@ -157,28 +162,43 @@ export default function TagsPage() {
       </Card>
 
       <div>
-        <h2 className="text-xl font-semibold mb-4">Існуючі теги ({tags.length})</h2>
-        <div className="space-y-3">
-          {tags.map(tag => {
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-xl font-semibold">Усі теги <span className="text-ink-400">({tags.length})</span></h2>
+          <div className="relative w-full sm:max-w-xs">
+            <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Пошук тегів"
+              className="field w-full py-2 pl-9 pr-9"
+            />
+            {query && <button type="button" onClick={() => setQuery('')} title="Очистити пошук" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-ink-400 hover:bg-paper-200 hover:text-ink"><X size={16} /></button>}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {filteredTags.map(tag => {
             const isOpen = expandedTagId === tag.id;
             const words = wordsByTag[tag.id];
             const count = tagCounts[tag.id] ?? 0;
             const hue = pastelFor(tag.name);
 
             return (
-              <Card key={tag.id} className="p-0 overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <button onClick={() => toggleTag(tag.id)} className="flex-1 flex items-center gap-3 px-4 py-3 text-left">
+              <Card key={tag.id} className={`min-w-0 overflow-hidden p-0 transition-shadow hover:shadow-cozy-sm ${isOpen ? 'sm:col-span-2 xl:col-span-3' : ''}`}>
+                <div className="relative">
+                  <button onClick={() => toggleTag(tag.id)} className="flex min-w-0 w-full items-center gap-2 px-3 py-3 pr-16 text-left sm:px-4 sm:pr-20">
                     <ChevronRight size={16} className={`text-ink-400 transition-transform shrink-0 ${isOpen ? 'rotate-90' : ''}`} />
-                    <Badge label={tag.name} seed={tag.name} />
-                    <span className="text-xs text-ink-400">{count} {wordsLabel(count)}</span>
+                    <div className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2 text-[15px] font-bold text-[#183A42]">
+                        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${hue.dot}`} />
+                        <span>{tag.name}</span>
+                      </span>
+                      <span className="mt-1 block text-xs text-ink-400">{count} {wordsLabel(count)}</span>
+                    </div>
                   </button>
-                  <IconButton onClick={() => editTag(tag)} title="Редагувати тег">
-                    <Pencil size={16} />
-                  </IconButton>
-                  <IconButton variant="danger" onClick={() => deleteTag(tag.id)} className="mr-2">
-                    <Trash2 size={16} />
-                  </IconButton>
+                  <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center">
+                    <IconButton onClick={() => editTag(tag)} title="Редагувати тег"><Pencil size={15} /></IconButton>
+                    <IconButton variant="danger" onClick={() => deleteTag(tag.id)}><Trash2 size={15} /></IconButton>
+                  </div>
                 </div>
 
                 {isOpen && (
@@ -190,7 +210,7 @@ export default function TagsPage() {
                       <p className="text-sm text-ink-400">До цього тега ще не прив'язано жодного слова</p>
                     )}
                     {loadingTagId !== tag.id && words && words.length > 0 && (
-                      <ul className="space-y-2">
+                      <ul className="grid gap-2 lg:grid-cols-2">
                         {words.map(card => (
                           <li key={card.id} className="flex items-center justify-between gap-4 bg-white rounded-lg px-3 py-2 border border-lavender-100">
                             <div className="flex items-center gap-3 min-w-0">
@@ -219,6 +239,11 @@ export default function TagsPage() {
           })}
           {tags.length === 0 && (
             <EmptyState icon={<TagsIcon size={28} />} title="Тегів ще немає" />
+          )}
+          {tags.length > 0 && filteredTags.length === 0 && (
+            <div className="sm:col-span-2 xl:col-span-3">
+              <EmptyState icon={<Search size={28} />} title="Тегів за цим запитом не знайдено" className="py-10" />
+            </div>
           )}
         </div>
       </div>
