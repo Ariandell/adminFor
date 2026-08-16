@@ -206,7 +206,10 @@ export default function TagsPage() {
                 <h2 className="text-lg font-bold text-ink">{selectedTag.name}</h2>
                 <span className="text-sm text-ink-400">{tagCounts[selectedTag.id] ?? 0} {wordsLabel(tagCounts[selectedTag.id] ?? 0)}</span>
               </div>
-              <IconButton onClick={() => setExpandedTagId(null)} title="Закрити"><X size={18} /></IconButton>
+              <div className="flex items-center gap-1">
+                <Button type="button" variant="secondary" size="sm" onClick={() => editTag(selectedTag)}><Pencil size={15} /> Редагувати тег</Button>
+                <IconButton onClick={() => setExpandedTagId(null)} title="Закрити"><X size={18} /></IconButton>
+              </div>
             </div>
             <Card className={`border-0 ${selectedHue.bg}`}>
               {loadingTagId === selectedTag.id && <p className="text-sm text-ink-400">Завантаження слів...</p>}
