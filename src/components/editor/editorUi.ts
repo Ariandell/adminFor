@@ -1,5 +1,5 @@
 // Спільні DOM-хелпери для кастомних інструментів Editor.js (аудіо, зображення).
-// Тримають єдиний стиль із рештою адмінки: акцент #9069C8 (lavender-500), нейтральні межі.
+// Тримають єдиний стиль із рештою адмінки: акцент #18AFA7 (fresh teal), нейтральні межі.
 
 const svg = (paths: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
@@ -11,7 +11,7 @@ export const icons = {
 };
 
 /** Кнопка-завантажувач: пунктирна рамка на всю ширину, наведення — акцентний колір. */
-export function makeUploader(iconSvg: string, label: string, accent = '#9069C8'): HTMLButtonElement {
+export function makeUploader(iconSvg: string, label: string, accent = '#18AFA7'): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
   button.innerHTML = `<span style="display:inline-flex">${iconSvg}</span><span>${label}</span>`;

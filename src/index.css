@@ -17,71 +17,130 @@
 @theme {
   --font-sans: "Nunito", ui-sans-serif, system-ui, -apple-system, sans-serif;
 
-  /* Тепла паперова основа */
-  --color-paper: #FBF7F1;
-  --color-paper-100: #F3EDE3;
-  --color-paper-200: #EAE1D2;
+  /* Свіжа основа — морський туман */
+  --color-paper: #F2FBF8;
+  --color-paper-100: #E5F4F0;
+  --color-paper-200: #D7ECE8;
 
   /* Текст */
-  --color-ink: #332E3D;
-  --color-ink-600: #6C6578;
-  --color-ink-400: #A79FB0;
+  --color-ink: #183A42;
+  --color-ink-600: #4E7075;
+  --color-ink-400: #89A8AA;
 
-  /* Основний акцент — пастельна лаванда */
-  --color-lavender-50: #F6F1FC;
-  --color-lavender-100: #ECE1FA;
-  --color-lavender-200: #D9C4F1;
-  --color-lavender-300: #C2A2E7;
-  --color-lavender-400: #AA86DB;
-  --color-lavender-500: #9069C8;
-  --color-lavender-600: #7854AC;
-  --color-lavender-700: #614390;
+  /* Основний акцент — свіжа бірюза */
+  --color-lavender-50: #EEFCFA;
+  --color-lavender-100: #D9F7F3;
+  --color-lavender-200: #B7ECE5;
+  --color-lavender-300: #84DCD2;
+  --color-lavender-400: #49C6BC;
+  --color-lavender-500: #18AFA7;
+  --color-lavender-600: #0B8E8C;
+  --color-lavender-700: #086C70;
 
   /* Пастельна м'ята — успіх / позитив */
-  --color-mint-50: #EEFBF3;
-  --color-mint-100: #DBF4E5;
-  --color-mint-200: #B9E9CD;
-  --color-mint-300: #92DAB1;
-  --color-mint-400: #6BC896;
-  --color-mint-500: #4FAE7E;
-  --color-mint-600: #398F65;
-  --color-mint-700: #2C7350;
+  --color-mint-50: #ECFBF4;
+  --color-mint-100: #D5F5E4;
+  --color-mint-200: #ACE9C8;
+  --color-mint-300: #79D8A9;
+  --color-mint-400: #49C48A;
+  --color-mint-500: #24A970;
+  --color-mint-600: #16895C;
+  --color-mint-700: #106B4A;
 
   /* Пастельний персик — другорядний акцент */
-  --color-peach-50: #FFF3EA;
-  --color-peach-100: #FFE3D0;
-  --color-peach-200: #FFCBA6;
-  --color-peach-300: #FCB081;
-  --color-peach-400: #F1975E;
-  --color-peach-500: #E38C51;
-  --color-peach-600: #C06E3B;
-  --color-peach-700: #9C562D;
+  --color-peach-50: #FFF6E8;
+  --color-peach-100: #FFEAC2;
+  --color-peach-200: #FFD28A;
+  --color-peach-300: #FFB85C;
+  --color-peach-400: #F79A3E;
+  --color-peach-500: #E88428;
+  --color-peach-600: #C6671C;
+  --color-peach-700: #984D16;
 
   /* Пастельне масло — теплий акцент */
-  --color-butter-50: #FFFAEA;
-  --color-butter-100: #FFF0BF;
-  --color-butter-200: #FEE38C;
-  --color-butter-300: #FBDA76;
-  --color-butter-400: #EFC24A;
-  --color-butter-500: #DFAF2C;
-  --color-butter-600: #B98A1C;
-  --color-butter-700: #916A16;
+  --color-butter-50: #FFFCE7;
+  --color-butter-100: #FFF4B8;
+  --color-butter-200: #FFE783;
+  --color-butter-300: #FFDB52;
+  --color-butter-400: #F5C52D;
+  --color-butter-500: #DFA915;
+  --color-butter-600: #B9860B;
+  --color-butter-700: #89630A;
 
   /* Пастельний рум'янець — небезпека / видалення */
-  --color-blush-50: #FDF0F3;
-  --color-blush-100: #FADCE2;
-  --color-blush-200: #F4BCC8;
-  --color-blush-300: #EFA0B0;
-  --color-blush-400: #E68196;
-  --color-blush-500: #DD6883;
-  --color-blush-600: #C24F6B;
-  --color-blush-700: #9E3E55;
+  --color-blush-50: #FFF0EE;
+  --color-blush-100: #FFDCD7;
+  --color-blush-200: #FFBDB4;
+  --color-blush-300: #FF9D91;
+  --color-blush-400: #F57F72;
+  --color-blush-500: #E9685D;
+  --color-blush-600: #C84D45;
+  --color-blush-700: #9E3935;
+}
+
+html {
+  min-height: 100%;
+  background: var(--color-paper);
 }
 
 body {
-  background-color: var(--color-paper);
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
+}
+
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 999px;
+  filter: blur(12px);
+  opacity: 0.8;
+  will-change: transform;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+body::before {
+  width: 44rem;
+  height: 32rem;
+  top: -12rem;
+  right: -9rem;
+  background: radial-gradient(circle at 35% 35%, rgba(132, 220, 210, 0.58), rgba(132, 220, 210, 0) 68%);
+  animation: floatFreshOne 18s ease-in-out infinite alternate;
+}
+
+body::after {
+  width: 38rem;
+  height: 30rem;
+  bottom: -13rem;
+  left: -10rem;
+  background: radial-gradient(circle at 65% 45%, rgba(255, 219, 82, 0.34), rgba(73, 196, 138, 0) 68%);
+  animation: floatFreshTwo 22s ease-in-out infinite alternate;
+}
+
+@keyframes floatFreshOne {
+  from { transform: translate3d(-2rem, 1rem, 0) scale(0.95); }
+  to { transform: translate3d(2rem, 3rem, 0) scale(1.08); }
+}
+
+@keyframes floatFreshTwo {
+  from { transform: translate3d(2rem, -1rem, 0) scale(1.05); }
+  to { transform: translate3d(7rem, -3rem, 0) scale(0.92); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  body::after { animation: none; }
 }
 
 /* Теплі, м'якші тіні замість стандартних сірих Tailwind */

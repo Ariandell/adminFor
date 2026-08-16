@@ -104,7 +104,7 @@ function createDefaultQuestion(type: QuestionType): Question {
 const S = {
   card: { border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, marginBottom: 16, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.06)' } as React.CSSProperties,
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 } as React.CSSProperties,
-  badge: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: '50%', background: '#ECE1FA', color: '#7854AC', fontWeight: 700, fontSize: 14, marginRight: 12, flexShrink: 0 } as React.CSSProperties,
+  badge: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: '50%', background: '#D9F7F3', color: '#0B8E8C', fontWeight: 700, fontSize: 14, marginRight: 12, flexShrink: 0 } as React.CSSProperties,
   label: { display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4 } as React.CSSProperties,
   input: { width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box' as const } as React.CSSProperties,
   textarea: { width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, minHeight: 70, resize: 'vertical' as const, outline: 'none', boxSizing: 'border-box' as const } as React.CSSProperties,

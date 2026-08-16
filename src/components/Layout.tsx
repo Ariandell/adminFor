@@ -22,7 +22,7 @@ const navGroups = [
 
 export default function Layout() {
   const location = useLocation();
-  return <div className="min-h-screen flex flex-col lg:flex-row font-sans text-ink bg-paper">
+  return <div className="min-h-screen flex flex-col lg:flex-row font-sans text-ink bg-transparent">
     <div className="lg:hidden sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-lavender-100">
       <div className="px-4 py-3 flex items-center gap-2"><div className="w-8 h-8 rounded-lg bg-lavender-500 text-white flex items-center justify-center"><Sparkles size={16} /></div><span className="font-extrabold">EnglishAdmin</span></div>
       <div className="flex gap-1 overflow-x-auto px-3 pb-3">{navGroups.flatMap(group => group.items).map(item => { const active = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path)); const Icon = item.icon; return <Link key={item.path} to={item.path} className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold ${active ? 'bg-lavender-500 text-white' : 'bg-paper-100 text-ink-600'}`}><Icon size={15} />{item.name}</Link>; })}</div>
