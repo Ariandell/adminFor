@@ -29,6 +29,7 @@ export default function LessonEditorPage() {
   const [showCardForm, setShowCardForm] = useState(false);
   const [newCardWord, setNewCardWord] = useState('');
   const [newCardTrans, setNewCardTrans] = useState('');
+  const [duplicateCard, setDuplicateCard] = useState<any>(null);
   const [newCardTags, setNewCardTags] = useState<any[]>([]);
   const [grayFile, setGrayFile] = useState<File | null>(null);
   const [colorFile, setColorFile] = useState<File | null>(null);
@@ -44,6 +45,20 @@ export default function LessonEditorPage() {
       setInitialDataLoaded(true);
     }
   }, [lessonId]);
+
+  useEffect(() => {
+    const word = newCardWord.trim();
+    if (word.length < 2) { setDuplicateCard(null); return; }
+    const timer = window.setTimeout(async () => {
+      const { data } = await supabase
+        .from('cards')
+        .select('id, original_word, translation, lessons(title, courses(title))')
+        .ilike('original_word', word)
+        .limit(1);
+      setDuplicateCard(data?.[0] || null);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [newCardWord]);
 
   async function fetchTags() {
     const { data } = await supabase.from('tags').select('*');
@@ -108,6 +123,10 @@ export default function LessonEditorPage() {
 
   async function handleAddCard(e: React.FormEvent) {
     e.preventDefault();
+    if (duplicateCard) {
+      showToast('Така картка вже є в системі', 'info');
+      return;
+    }
     if (!lessonId) {
       showToast('Спочатку збережіть урок, щоб додавати картки!', 'info');
       return;
@@ -233,13 +252,15 @@ export default function LessonEditorPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-ink-600 mb-1">Оригінал слова</label>
-                  <input required value={newCardWord} onChange={e => setNewCardWord(e.target.value)} type="text" className="w-full border border-lavender-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-lavender-300" />
+                  <input required value={newCardWord} onChange={e => setNewCardWord(e.target.value)} type="text" className="field" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-ink-600 mb-1">Переклад</label>
-                  <input required value={newCardTrans} onChange={e => setNewCardTrans(e.target.value)} type="text" className="w-full border border-lavender-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-lavender-300" />
+                  <input required value={newCardTrans} onChange={e => setNewCardTrans(e.target.value)} type="text" className="field" />
                 </div>
               </div>
+
+              {duplicateCard && <div className="rounded-xl border border-blush-200 bg-blush-100 px-4 py-3 text-sm text-blush-700"><strong>Така картка вже є:</strong> {duplicateCard.original_word} — {duplicateCard.translation}<span className="block text-xs mt-1">{duplicateCard.lessons?.courses?.title} · {duplicateCard.lessons?.title}</span></div>}
 
               <div>
                 <label className="block text-sm font-medium text-ink-600 mb-1">Теги</label>
@@ -259,7 +280,7 @@ export default function LessonEditorPage() {
 
               <div className="flex justify-end gap-2 mt-4">
                 <Button type="button" variant="ghost" onClick={() => setShowCardForm(false)}>Скасувати</Button>
-                <Button disabled={loading} type="submit">
+                <Button disabled={loading || !!duplicateCard} type="submit">
                   {loading ? 'Збереження...' : 'Зберегти картку'}
                 </Button>
               </div>

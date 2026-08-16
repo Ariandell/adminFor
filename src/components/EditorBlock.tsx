@@ -6,6 +6,7 @@ import List from '@editorjs/list';
 import Quote from '@editorjs/quote';
 import Delimiter from '@editorjs/delimiter';
 import Warning from '@editorjs/warning';
+import Table from '@editorjs/table';
 import YoutubeEmbed from 'editorjs-youtube-embed';
 import Undo from 'editorjs-undo';
 import { Undo2, Redo2, Bold, Italic, Underline } from 'lucide-react';
@@ -41,6 +42,7 @@ function EditorBlockInner({ onChange, initialData }: EditorProps) {
           image: CustomImageTool as unknown as Record<string, unknown>,
           delimiter: Delimiter,
           warning: Warning,
+          table: { class: Table, inlineToolbar: true } as unknown as Record<string, unknown>,
           quiz: CustomQuizTool,
         },
         data: initialData,

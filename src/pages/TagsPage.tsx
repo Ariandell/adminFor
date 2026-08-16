@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { ChevronRight, Trash2, Tags as TagsIcon } from 'lucide-react';
+import { ChevronRight, Pencil, Trash2, Tags as TagsIcon } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -21,6 +21,7 @@ export default function TagsPage() {
   const [tags, setTags] = useState<any[]>([]);
   const [tagCounts, setTagCounts] = useState<Record<string, number>>({});
   const [name, setName] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const [expandedTagId, setExpandedTagId] = useState<string | null>(null);
@@ -84,22 +85,33 @@ export default function TagsPage() {
     }
   }
 
-  async function createTag(e: React.FormEvent) {
+  async function saveTag(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     setLoading(true);
 
     try {
-      const { error } = await supabase.from('tags').insert([{ name: name.trim() }]);
+      const duplicate = tags.find(tag => tag.id !== editingId && tag.name.trim().toLocaleLowerCase() === name.trim().toLocaleLowerCase());
+      if (duplicate) throw new Error('Такий тег уже існує');
+      const { error } = editingId
+        ? await supabase.from('tags').update({ name: name.trim() }).eq('id', editingId)
+        : await supabase.from('tags').insert([{ name: name.trim() }]);
       if (error) throw error;
 
       setName('');
+      setEditingId(null);
       fetchTags();
     } catch (error: any) {
       showToast('Помилка: ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
+  }
+
+  function editTag(tag: any) {
+    setEditingId(tag.id);
+    setName(tag.name);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async function deleteTag(id: string) {
@@ -124,19 +136,20 @@ export default function TagsPage() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-8">
       <Card className="h-fit">
-        <h2 className="text-xl font-semibold mb-4">Створити новий тег</h2>
-        <form onSubmit={createTag} className="flex flex-col gap-3">
+        <h2 className="text-xl font-semibold mb-4">{editingId ? 'Редагувати тег' : 'Новий тег'}</h2>
+        <form onSubmit={saveTag} className="flex flex-col gap-3">
           <input
             required
             value={name}
             onChange={e => setName(e.target.value)}
             type="text"
             placeholder="Наприклад: Їжа, Тварини..."
-            className="border border-lavender-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-lavender-300"
+            className="field"
           />
           <Button disabled={loading} type="submit">
-            Додати
+            {editingId ? 'Зберегти' : 'Додати'}
           </Button>
+          {editingId && <Button type="button" variant="secondary" onClick={() => { setEditingId(null); setName(''); }}>Скасувати</Button>}
         </form>
       </Card>
 
@@ -157,6 +170,9 @@ export default function TagsPage() {
                     <Badge label={tag.name} seed={tag.name} />
                     <span className="text-xs text-ink-400">{count} {wordsLabel(count)}</span>
                   </button>
+                  <IconButton onClick={() => editTag(tag)} title="Редагувати тег">
+                    <Pencil size={16} />
+                  </IconButton>
                   <IconButton variant="danger" onClick={() => deleteTag(tag.id)} className="mr-2">
                     <Trash2 size={16} />
                   </IconButton>

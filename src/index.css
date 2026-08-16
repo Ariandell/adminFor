@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+@layer components {
+  .field {
+    width: 100%;
+    border: 1px solid var(--color-lavender-200);
+    border-radius: 0.75rem;
+    background: white;
+    padding: 0.7rem 0.85rem;
+    outline: none;
+  }
+  .field:focus {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-lavender-300) 55%, transparent);
+  }
+}
+
 @theme {
   --font-sans: "Nunito", ui-sans-serif, system-ui, -apple-system, sans-serif;
 

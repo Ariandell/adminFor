@@ -15,6 +15,11 @@ export default function CoursesPage() {
   const [title, setTitle] = useState('');
   const [level, setLevel] = useState('BEGINNER 1');
   const [totalLessons, setTotalLessons] = useState(10);
+  const [courseType, setCourseType] = useState('main');
+  const [accessTier, setAccessTier] = useState('free');
+  const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('');
+  const [published, setPublished] = useState(false);
 
   const [uncoloredFile, setUncoloredFile] = useState<File | null>(null);
   const [coloredFile, setColoredFile] = useState<File | null>(null);
@@ -45,6 +50,11 @@ export default function CoursesPage() {
     setTitle('');
     setLevel('BEGINNER 1');
     setTotalLessons(10);
+    setCourseType('main');
+    setAccessTier('free');
+    setDescription('');
+    setPrice('');
+    setPublished(false);
     setUncoloredFile(null);
     setColoredFile(null);
   }
@@ -54,6 +64,11 @@ export default function CoursesPage() {
     setTitle(course.title);
     setLevel(course.level);
     setTotalLessons(course.total_lessons);
+    setCourseType(course.course_type || 'main');
+    setAccessTier(course.access_tier || 'free');
+    setDescription(course.description || '');
+    setPrice(course.price == null ? '' : String(course.price));
+    setPublished(!!course.is_published);
     setUncoloredFile(null);
     setColoredFile(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -78,6 +93,11 @@ export default function CoursesPage() {
         title,
         level,
         total_lessons: totalLessons,
+        course_type: courseType,
+        access_tier: accessTier,
+        description: description || null,
+        price: accessTier === 'purchase' && price ? Number(price) : null,
+        is_published: published,
         image_uncolored_url: uncoloredUrl,
         image_colored_url: coloredUrl
       };
@@ -160,6 +180,24 @@ export default function CoursesPage() {
             </div>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-ink-600 mb-1">Опис</label>
+            <textarea value={description} onChange={e => setDescription(e.target.value)} className="field min-h-20" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-ink-600 mb-1">Розділ</label>
+              <select value={courseType} onChange={e => setCourseType(e.target.value)} className="field"><option value="main">Основний курс</option><option value="additional">Додатковий курс</option></select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-ink-600 mb-1">Доступ</label>
+              <select value={accessTier} onChange={e => setAccessTier(e.target.value)} className="field"><option value="free">Безкоштовно</option><option value="basic">Basic</option><option value="premium">Premium</option><option value="purchase">Окрема покупка</option></select>
+            </div>
+          </div>
+          {accessTier === 'purchase' && <div><label className="block text-sm font-medium text-ink-600 mb-1">Ціна</label><input type="number" min="0" step="0.01" value={price} onChange={e => setPrice(e.target.value)} className="field" /></div>}
+          <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={published} onChange={e => setPublished(e.target.checked)} className="accent-lavender-500" />Опубліковано</label>
+
           <div className="pt-4 border-t border-lavender-100 space-y-4">
             <FileDropzone
               label="Чорно-біле фото"
@@ -208,6 +246,7 @@ export default function CoursesPage() {
                   <h3 className="font-bold text-lg leading-tight text-lavender-600 truncate">{course.title}</h3>
                   <p className="text-sm text-ink-400 mt-1">{course.level}</p>
                   <p className="text-sm text-ink-400">{course.total_lessons} уроків загалом</p>
+                  <div className="flex gap-2 mt-2"><span className="text-xs rounded-full bg-lavender-100 text-lavender-700 px-2 py-0.5">{course.course_type === 'additional' ? 'Додатковий' : 'Основний'}</span><span className="text-xs rounded-full bg-mint-100 text-mint-700 px-2 py-0.5">{course.access_tier || 'free'}</span></div>
                 </div>
               </Link>
               <div className="flex gap-2 justify-end border-t border-lavender-100 pt-2 -mx-1">

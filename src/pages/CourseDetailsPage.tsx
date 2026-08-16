@@ -64,7 +64,7 @@ export default function CourseDetailsPage() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <Link to="/" className="inline-flex items-center text-lavender-600 hover:text-lavender-700 mb-6 font-semibold">
+      <Link to="/courses" className="inline-flex items-center text-lavender-600 hover:text-lavender-700 mb-6 font-semibold">
         <ArrowLeft size={16} className="mr-2" /> Назад до курсів
       </Link>
 
