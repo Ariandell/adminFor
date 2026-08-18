@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import Select from 'react-select';
 import { Search, Plus, Pencil, Trash2, AlertTriangle, CreditCard } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useToast } from '../components/Toast';
@@ -18,6 +19,8 @@ const emptyForm = { id: '', card_type: 'standard' as CardType, level: 'A1', orig
 export default function CardsPage() {
   const { showToast } = useToast();
   const [cards, setCards] = useState<any[]>([]);
+  const [tagsOptions, setTagsOptions] = useState<any[]>([]);
+  const [formTags, setFormTags] = useState<any[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState('');
   const [type, setType] = useState<CardType>('standard');
@@ -27,7 +30,7 @@ export default function CardsPage() {
   const [schemaReady, setSchemaReady] = useState(true);
 
   async function fetchCards() {
-    const { data, error } = await supabase.from('cards').select('*, lessons(title, courses(title))').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('cards').select('*, lessons(title, courses(title)), card_tags(tags(id, name))').order('created_at', { ascending: false });
     if (error) showToast('Не вдалося завантажити картки: ' + error.message, 'error');
     else {
       const rows = data || [];
@@ -35,7 +38,12 @@ export default function CardsPage() {
       setSchemaReady(rows.length === 0 || Object.prototype.hasOwnProperty.call(rows[0], 'card_type'));
     }
   }
-  useEffect(() => { fetchCards(); }, []);
+  async function fetchTags() {
+    const { data, error } = await supabase.from('tags').select('id, name').order('name');
+    if (error) showToast('Не вдалося завантажити теги: ' + error.message, 'error');
+    else setTagsOptions((data || []).map(tag => ({ value: tag.id, label: tag.name })));
+  }
+  useEffect(() => { fetchCards(); fetchTags(); }, []);
 
   const duplicate = useMemo(() => {
     const rawWord = form.card_type === 'irregular_verb' ? form.infinitive : form.original_word;
@@ -53,8 +61,12 @@ export default function CardsPage() {
     return cardType === type && (level === 'all' || (card.level || 'A1') === level) && text.includes(search.toLocaleLowerCase());
   }), [cards, type, level, search]);
 
-  function openNew() { setForm({ ...emptyForm, card_type: type, level: level === 'all' ? 'A1' : level }); setShowForm(true); }
-  function openEdit(card: any) { setForm({ ...emptyForm, ...card, card_type: card.card_type || 'standard', level: card.level || 'A1' }); setShowForm(true); }
+  function openNew() { setForm({ ...emptyForm, card_type: type, level: level === 'all' ? 'A1' : level }); setFormTags([]); setShowForm(true); }
+  function openEdit(card: any) {
+    setForm({ ...emptyForm, ...card, card_type: card.card_type || 'standard', level: card.level || 'A1' });
+    setFormTags((card.card_tags || []).filter((link: any) => link.tags).map((link: any) => ({ value: link.tags.id, label: link.tags.name })));
+    setShowForm(true);
+  }
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -69,12 +81,22 @@ export default function CardsPage() {
       past_simple: form.card_type === 'irregular_verb' ? parseCardText(form.past_simple).word : null,
       past_participle: form.card_type === 'irregular_verb' ? parseCardText(form.past_participle).word : null,
     };
-    const query = form.id ? supabase.from('cards').update(payload).eq('id', form.id) : supabase.from('cards').insert([payload]);
-    const { error } = await query;
+    const query = form.id
+      ? supabase.from('cards').update(payload).eq('id', form.id).select('id').single()
+      : supabase.from('cards').insert([payload]).select('id').single();
+    const { data: savedCard, error } = await query;
+    if (error) { setLoading(false); showToast(error.message.includes('column') ? 'Спочатку застосуйте міграцію Supabase з репозиторію.' : error.message, 'error'); return; }
+
+    const cardId = savedCard?.id || form.id;
+    const { error: removeTagsError } = await supabase.from('card_tags').delete().eq('card_id', cardId);
+    if (removeTagsError) { setLoading(false); showToast('Картку збережено, але теги не оновлено: ' + removeTagsError.message, 'error'); return; }
+    if (formTags.length > 0) {
+      const { error: addTagsError } = await supabase.from('card_tags').insert(formTags.map(tag => ({ card_id: cardId, tag_id: tag.value })));
+      if (addTagsError) { setLoading(false); showToast('Картку збережено, але теги не оновлено: ' + addTagsError.message, 'error'); return; }
+    }
     setLoading(false);
-    if (error) { showToast(error.message.includes('column') ? 'Спочатку застосуйте міграцію Supabase з репозиторію.' : error.message, 'error'); return; }
     showToast(form.id ? 'Картку оновлено' : 'Картку додано', 'success');
-    setShowForm(false); setForm(emptyForm); fetchCards();
+    setShowForm(false); setForm(emptyForm); setFormTags([]); fetchCards();
   }
 
   async function remove(card: any) {
@@ -101,12 +123,13 @@ export default function CardsPage() {
         <div className="grid md:grid-cols-3 gap-3"><select value={form.card_type} onChange={e => setForm({ ...form, card_type: e.target.value as CardType })} className="field"><option value="standard">Звичайна картка</option><option value="irregular_verb">Неправильне дієслово</option></select><select value={form.level} onChange={e => setForm({ ...form, level: e.target.value })} className="field">{LEVELS.map(x => <option key={x}>{x}</option>)}</select><input value={form.translation} onChange={e => setForm({ ...form, translation: e.target.value })} placeholder="Переклад (необов'язково)" className="field" /></div>
         {form.card_type === 'standard' ? <input required value={form.original_word} onChange={e => setForm({ ...form, original_word: e.target.value })} placeholder="Англійське слово або фраза, наприклад book (бук)" className="field" /> : <div className="grid md:grid-cols-3 gap-3"><input required value={form.infinitive} onChange={e => setForm({ ...form, infinitive: e.target.value })} placeholder="Infinitive" className="field" /><input required value={form.past_simple} onChange={e => setForm({ ...form, past_simple: e.target.value })} placeholder="Past Simple" className="field" /><input required value={form.past_participle} onChange={e => setForm({ ...form, past_participle: e.target.value })} placeholder="Past Participle" className="field" /></div>}
         <div className="grid md:grid-cols-2 gap-3"><input value={form.transcription} onChange={e => setForm({ ...form, transcription: e.target.value })} placeholder="Транскрипція" className="field" /><input value={form.example} onChange={e => setForm({ ...form, example: e.target.value })} placeholder="Приклад речення" className="field" /></div>
+        <div><label className="mb-1 block text-sm font-medium text-ink-600">Теги</label><Select isMulti options={tagsOptions} value={formTags} onChange={value => setFormTags(value as any[])} placeholder="Оберіть один або кілька тегів" noOptionsMessage={() => 'Тегів не знайдено'} /></div>
         {duplicate && <div className="rounded-xl bg-blush-100 border border-blush-200 p-3 text-sm text-blush-700"><strong>Дублікат:</strong> {duplicate.original_word} — {duplicate.translation} · {duplicate.level || 'A1'}</div>}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setShowForm(false)}>Скасувати</Button><Button disabled={loading || !!duplicate} type="submit">Зберегти</Button></div>
       </form></Card>}
 
       <Card className="p-0 overflow-hidden">
-        {filtered.length === 0 ? <EmptyState icon={<CreditCard size={28} />} title="Карток не знайдено" /> : <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-paper-100 text-left text-ink-400"><tr><th className="px-5 py-3">Картка</th>{type === 'irregular_verb' && <><th className="px-5 py-3">Past Simple</th><th className="px-5 py-3">Past Participle</th></>}<th className="px-5 py-3">Переклад</th><th className="px-5 py-3">Рівень</th><th className="px-5 py-3">Урок</th><th /></tr></thead><tbody className="divide-y divide-lavender-100">{filtered.map(card => <tr key={card.id} className="hover:bg-lavender-50/50"><td className="px-5 py-4 font-bold">{card.infinitive || card.original_word}</td>{type === 'irregular_verb' && <><td className="px-5 py-4">{card.past_simple || '—'}</td><td className="px-5 py-4">{card.past_participle || '—'}</td></>}<td className="px-5 py-4 text-ink-600">{card.translation}</td><td className="px-5 py-4"><Badge label={card.level || 'A1'} seed={card.level || 'A1'} /></td><td className="px-5 py-4 text-ink-400">{card.lessons?.title || '—'}</td><td className="px-4 py-3"><div className="flex justify-end"><IconButton onClick={() => openEdit(card)}><Pencil size={16} /></IconButton><IconButton variant="danger" onClick={() => remove(card)}><Trash2 size={16} /></IconButton></div></td></tr>)}</tbody></table></div>}
+        {filtered.length === 0 ? <EmptyState icon={<CreditCard size={28} />} title="Карток не знайдено" /> : <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-paper-100 text-left text-ink-400"><tr><th className="px-5 py-3">Картка</th>{type === 'irregular_verb' && <><th className="px-5 py-3">Past Simple</th><th className="px-5 py-3">Past Participle</th></>}<th className="px-5 py-3">Переклад</th><th className="px-5 py-3">Теги</th><th className="px-5 py-3">Рівень</th><th className="px-5 py-3">Урок</th><th /></tr></thead><tbody className="divide-y divide-lavender-100">{filtered.map(card => <tr key={card.id} className="hover:bg-lavender-50/50"><td className="px-5 py-4 font-bold">{card.infinitive || card.original_word}</td>{type === 'irregular_verb' && <><td className="px-5 py-4">{card.past_simple || '—'}</td><td className="px-5 py-4">{card.past_participle || '—'}</td></>}<td className="px-5 py-4 text-ink-600">{card.translation}</td><td className="px-5 py-4"><div className="flex min-w-36 flex-wrap gap-1">{card.card_tags?.map((link: any) => link.tags && <Badge key={link.tags.id} label={link.tags.name} />)}</div></td><td className="px-5 py-4"><Badge label={card.level || 'A1'} seed={card.level || 'A1'} /></td><td className="px-5 py-4 text-ink-400">{card.lessons?.title || '—'}</td><td className="px-4 py-3"><div className="flex justify-end"><IconButton onClick={() => openEdit(card)}><Pencil size={16} /></IconButton><IconButton variant="danger" onClick={() => remove(card)}><Trash2 size={16} /></IconButton></div></td></tr>)}</tbody></table></div>}
       </Card>
     </div>
   );
