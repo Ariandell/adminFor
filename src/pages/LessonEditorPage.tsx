@@ -145,10 +145,6 @@ export default function LessonEditorPage() {
 
   async function handleSaveCard(e: React.FormEvent) {
     e.preventDefault();
-    if (duplicateCard) {
-      showToast('Така картка вже є в системі', 'info');
-      return;
-    }
     if (!lessonId) {
       showToast('Спочатку збережіть урок, щоб додавати картки!', 'info');
       return;
@@ -285,7 +281,7 @@ export default function LessonEditorPage() {
                 </div>
               </div>
 
-              {duplicateCard && <div className="rounded-xl border border-blush-200 bg-blush-100 px-4 py-3 text-sm text-blush-700"><strong>Така картка вже є:</strong> {duplicateCard.original_word} — {duplicateCard.translation}<span className="block text-xs mt-1">{duplicateCard.lessons?.courses?.title} · {duplicateCard.lessons?.title}</span></div>}
+              {duplicateCard && <div className="rounded-xl border border-butter-200 bg-butter-100 px-4 py-3 text-sm text-butter-700"><strong>Схожа картка вже є:</strong> {duplicateCard.original_word} — {duplicateCard.translation}<span className="block text-xs mt-1">{duplicateCard.lessons?.courses?.title} · {duplicateCard.lessons?.title}</span><span className="block text-xs mt-1">Її все одно можна зберегти для іншого контексту.</span></div>}
 
               <div>
                 <label className="block text-sm font-medium text-ink-600 mb-1">Теги</label>
@@ -305,7 +301,7 @@ export default function LessonEditorPage() {
 
               <div className="flex justify-end gap-2 mt-4">
                 <Button type="button" variant="ghost" onClick={resetCardForm}>Скасувати</Button>
-                <Button disabled={loading || !!duplicateCard} type="submit">
+                <Button disabled={loading} type="submit">
                   {loading ? 'Збереження...' : editingCardId ? 'Зберегти зміни' : 'Зберегти картку'}
                 </Button>
               </div>
