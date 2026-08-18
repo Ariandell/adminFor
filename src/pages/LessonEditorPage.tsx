@@ -281,7 +281,7 @@ export default function LessonEditorPage() {
                 </div>
               </div>
 
-              {duplicateCard && <div className="rounded-xl border border-butter-200 bg-butter-100 px-4 py-3 text-sm text-butter-700"><strong>Схожа картка вже є:</strong> {duplicateCard.original_word} — {duplicateCard.translation}<span className="block text-xs mt-1">{duplicateCard.lessons?.courses?.title} · {duplicateCard.lessons?.title}</span><span className="block text-xs mt-1">Її все одно можна зберегти для іншого контексту.</span></div>}
+              {duplicateCard && <div className="rounded-xl border border-butter-200 bg-butter-100 px-4 py-3 text-sm text-butter-700"><strong>Схожа картка вже є:</strong> {duplicateCard.original_word} — {duplicateCard.translation}<span className="block text-xs mt-1">{duplicateCard.lessons?.courses?.title} · {duplicateCard.lessons?.title}</span></div>}
 
               <div>
                 <label className="block text-sm font-medium text-ink-600 mb-1">Теги</label>
