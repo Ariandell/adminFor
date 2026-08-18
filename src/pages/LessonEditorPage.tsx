@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient';
 import EditorBlock from '../components/EditorBlock';
 import { type OutputData } from '@editorjs/editorjs';
 import Select from 'react-select';
-import { ArrowLeft, Plus, Trash2, ImageIcon, LayoutGrid } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, ImageIcon, LayoutGrid } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import { cardTranslation, normalizeCardWord, parseCardText } from '../lib/cardText';
 import Card, { cardClass } from '../components/ui/Card';
@@ -34,6 +34,7 @@ export default function LessonEditorPage() {
   const [newCardTags, setNewCardTags] = useState<any[]>([]);
   const [grayFile, setGrayFile] = useState<File | null>(null);
   const [colorFile, setColorFile] = useState<File | null>(null);
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
@@ -56,10 +57,10 @@ export default function LessonEditorPage() {
         .select('id, original_word, translation, lessons(title, courses(title))')
         .ilike('original_word', `${word}%`)
         .limit(20);
-      setDuplicateCard((data || []).find((card: any) => normalizeCardWord(card.original_word) === normalizeCardWord(word)) || null);
+      setDuplicateCard((data || []).find((card: any) => card.id !== editingCardId && normalizeCardWord(card.original_word) === normalizeCardWord(word)) || null);
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [newCardWord]);
+  }, [newCardWord, editingCardId]);
 
   async function fetchTags() {
     const { data } = await supabase.from('tags').select('*');
@@ -122,7 +123,27 @@ export default function LessonEditorPage() {
     return publicUrl;
   }
 
-  async function handleAddCard(e: React.FormEvent) {
+  function resetCardForm() {
+    setShowCardForm(false);
+    setEditingCardId(null);
+    setNewCardWord('');
+    setNewCardTrans('');
+    setNewCardTags([]);
+    setGrayFile(null);
+    setColorFile(null);
+  }
+
+  function openCardEditor(card: any) {
+    setEditingCardId(card.id);
+    setNewCardWord(card.original_word || '');
+    setNewCardTrans(card.translation || '');
+    setNewCardTags((card.card_tags || []).filter((link: any) => link.tags).map((link: any) => ({ value: link.tags.id, label: link.tags.name })));
+    setGrayFile(null);
+    setColorFile(null);
+    setShowCardForm(true);
+  }
+
+  async function handleSaveCard(e: React.FormEvent) {
     e.preventDefault();
     if (duplicateCard) {
       showToast('Така картка вже є в системі', 'info');
@@ -140,28 +161,30 @@ export default function LessonEditorPage() {
       if (grayFile) grayUrl = await uploadImage(grayFile, `cards/gray_${Date.now()}_${grayFile.name}`);
       if (colorFile) colorUrl = await uploadImage(colorFile, `cards/color_${Date.now()}_${colorFile.name}`);
 
-      const { data: newCard, error: cardError } = await supabase.from('cards').insert([{
+      const cardPayload: Record<string, unknown> = {
         lesson_id: lessonId,
         original_word: parseCardText(newCardWord).word,
         translation: cardTranslation(newCardWord, newCardTrans),
-        image_gray_url: grayUrl,
-        image_color_url: colorUrl
-      }]).select().single();
+      };
+      if (grayUrl) cardPayload.image_gray_url = grayUrl;
+      if (colorUrl) cardPayload.image_color_url = colorUrl;
+
+      const { data: savedCard, error: cardError } = editingCardId
+        ? await supabase.from('cards').update(cardPayload).eq('id', editingCardId).select().single()
+        : await supabase.from('cards').insert([{ ...cardPayload, image_gray_url: grayUrl, image_color_url: colorUrl }]).select().single();
 
       if (cardError) throw cardError;
 
+      const { error: clearTagsError } = await supabase.from('card_tags').delete().eq('card_id', savedCard.id);
+      if (clearTagsError) throw clearTagsError;
       if (newCardTags.length > 0) {
-        const tagInserts = newCardTags.map(t => ({ card_id: newCard.id, tag_id: t.value }));
+        const tagInserts = newCardTags.map(t => ({ card_id: savedCard.id, tag_id: t.value }));
         const { error: tagError } = await supabase.from('card_tags').insert(tagInserts);
         if (tagError) throw tagError;
       }
 
-      setShowCardForm(false);
-      setNewCardWord('');
-      setNewCardTrans('');
-      setNewCardTags([]);
-      setGrayFile(null);
-      setColorFile(null);
+      showToast(editingCardId ? 'Картку оновлено' : 'Картку додано', 'success');
+      resetCardForm();
       fetchLessonData();
 
     } catch (err: any) {
@@ -243,13 +266,14 @@ export default function LessonEditorPage() {
         <div>
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">Картки</h2>
-            <Button size="sm" onClick={() => setShowCardForm(!showCardForm)}>
+            <Button size="sm" onClick={() => { resetCardForm(); setShowCardForm(true); }}>
               <Plus size={18} /> Додати картку
             </Button>
           </div>
 
           {showCardForm && (
-            <form onSubmit={handleAddCard} className={cardClass('accent', 'mb-8 space-y-4')}>
+            <form onSubmit={handleSaveCard} className={cardClass('accent', 'mb-8 space-y-4')}>
+              <h3 className="text-lg font-bold">{editingCardId ? 'Редагування картки' : 'Нова картка'}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-ink-600 mb-1">Оригінал слова</label>
@@ -280,9 +304,9 @@ export default function LessonEditorPage() {
               </div>
 
               <div className="flex justify-end gap-2 mt-4">
-                <Button type="button" variant="ghost" onClick={() => setShowCardForm(false)}>Скасувати</Button>
+                <Button type="button" variant="ghost" onClick={resetCardForm}>Скасувати</Button>
                 <Button disabled={loading || !!duplicateCard} type="submit">
-                  {loading ? 'Збереження...' : 'Зберегти картку'}
+                  {loading ? 'Збереження...' : editingCardId ? 'Зберегти зміни' : 'Зберегти картку'}
                 </Button>
               </div>
             </form>
@@ -301,9 +325,10 @@ export default function LessonEditorPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start gap-2">
                     <h3 className="font-bold text-lg">{card.original_word}</h3>
-                    <IconButton variant="danger" className="p-1 -mt-1 -mr-1 shrink-0" onClick={() => deleteCard(card.id)}>
-                      <Trash2 size={16} />
-                    </IconButton>
+                    <div className="-mt-1 -mr-1 flex shrink-0">
+                      <IconButton className="p-1" title="Редагувати картку" onClick={() => openCardEditor(card)}><Pencil size={16} /></IconButton>
+                      <IconButton variant="danger" className="p-1" title="Видалити картку" onClick={() => deleteCard(card.id)}><Trash2 size={16} /></IconButton>
+                    </div>
                   </div>
                   <p className="text-ink-600 text-sm">{card.translation}</p>
                   <div className="flex flex-wrap gap-1 mt-2">
