@@ -4,9 +4,10 @@ import { supabase } from '../supabaseClient';
 import EditorBlock from '../components/EditorBlock';
 import { type OutputData } from '@editorjs/editorjs';
 import Select from 'react-select';
+import { v4 as uuidv4 } from 'uuid';
 import { ArrowLeft, Plus, Pencil, Trash2, ImageIcon, LayoutGrid } from 'lucide-react';
 import { useToast } from '../components/Toast';
-import { cardTranslation, normalizeCardWord, parseCardText } from '../lib/cardText';
+import { buildCardTextFields, normalizeCardWord, parseCardText } from '../lib/cardText';
 import Card, { cardClass } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import IconButton from '../components/ui/IconButton';
@@ -81,7 +82,7 @@ export default function LessonEditorPage() {
   }
 
   async function fetchLessonData() {
-    const { data: lesson } = await supabase.from('lessons').select('*').eq('id', lessonId).single();
+    const { data: lesson } = await supabase.from('lessons').select('*').eq('id', lessonId).maybeSingle();
     if (lesson) {
       setTitle(lesson.title);
       setContent(lesson.content);
@@ -115,10 +116,11 @@ export default function LessonEditorPage() {
         const { count } = await supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('course_id', courseId);
         const orderIndex = (count ?? 0) + 1;
 
-        const { data, error } = await supabase.from('lessons').insert([{ ...lessonData, order_index: orderIndex }]).select().single();
+        const newLessonId = uuidv4();
+        const { error } = await supabase.from('lessons').insert([{ id: newLessonId, ...lessonData, order_index: orderIndex }]);
         if (error) throw error;
         showToast('Урок створено!', 'success');
-        navigate(`/courses/${courseId}/lessons/${data.id}`);
+        navigate(`/courses/${courseId}/lessons/${newLessonId}`);
       }
     } catch (error: any) {
       showToast('Помилка: ' + error.message, 'error');
@@ -179,26 +181,29 @@ export default function LessonEditorPage() {
 
       const cardPayload: Record<string, unknown> = {
         lesson_id: lessonId,
-        card_type: cardType,
-        original_word: parseCardText(cardType === 'irregular_verb' ? infinitive : newCardWord).word,
-        translation: cardTranslation(cardType === 'irregular_verb' ? infinitive : newCardWord, newCardTrans),
-        infinitive: cardType === 'irregular_verb' ? parseCardText(infinitive).word : null,
-        past_simple: cardType === 'irregular_verb' ? parseCardText(pastSimple).word : null,
-        past_participle: cardType === 'irregular_verb' ? parseCardText(pastParticiple).word : null,
+        ...buildCardTextFields({
+          cardType,
+          originalWord: newCardWord,
+          translation: newCardTrans,
+          infinitive,
+          pastSimple,
+          pastParticiple,
+        }),
       };
       if (grayUrl) cardPayload.image_gray_url = grayUrl;
       if (colorUrl) cardPayload.image_color_url = colorUrl;
 
-      const { data: savedCard, error: cardError } = editingCardId
-        ? await supabase.from('cards').update(cardPayload).eq('id', editingCardId).select().single()
-        : await supabase.from('cards').insert([{ ...cardPayload, image_gray_url: grayUrl, image_color_url: colorUrl }]).select().single();
+      const cardId = editingCardId || uuidv4();
+      const { error: cardError } = editingCardId
+        ? await supabase.from('cards').update(cardPayload).eq('id', editingCardId)
+        : await supabase.from('cards').insert([{ id: cardId, ...cardPayload, image_gray_url: grayUrl, image_color_url: colorUrl }]);
 
       if (cardError) throw cardError;
 
-      const { error: clearTagsError } = await supabase.from('card_tags').delete().eq('card_id', savedCard.id);
+      const { error: clearTagsError } = await supabase.from('card_tags').delete().eq('card_id', cardId);
       if (clearTagsError) throw clearTagsError;
       if (newCardTags.length > 0) {
-        const tagInserts = newCardTags.map(t => ({ card_id: savedCard.id, tag_id: t.value }));
+        const tagInserts = newCardTags.map(t => ({ card_id: cardId, tag_id: t.value }));
         const { error: tagError } = await supabase.from('card_tags').insert(tagInserts);
         if (tagError) throw tagError;
       }
@@ -348,7 +353,7 @@ export default function LessonEditorPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {visibleCards.map(card => (
-              <Card key={card.id} className="p-4 flex gap-4">
+              <Card key={card.id} className="flex min-w-0 gap-4 p-4">
                 <div className="w-16 h-16 bg-paper-100 rounded-lg overflow-hidden shrink-0">
                   {card.image_color_url ? (
                     <img src={card.image_color_url} alt="" className="w-full h-full object-cover" />
@@ -358,7 +363,7 @@ export default function LessonEditorPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start gap-2">
-                    <h3 className="text-lg font-bold">
+                    <h3 className="min-w-0 flex-1 break-words text-lg font-bold">
                       {activeCardType === 'irregular_verb'
                         ? [card.infinitive || card.original_word, card.past_simple, card.past_participle].filter(Boolean).join(' · ')
                         : card.original_word}
@@ -368,7 +373,7 @@ export default function LessonEditorPage() {
                       <IconButton variant="danger" className="p-1" title="Видалити картку" onClick={() => deleteCard(card.id)}><Trash2 size={16} /></IconButton>
                     </div>
                   </div>
-                  <p className="text-ink-600 text-sm">{card.translation}</p>
+                  <p className="break-words text-sm text-ink-600">{card.translation}</p>
                   <div className="flex flex-wrap gap-1 mt-2">
                     {card.card_tags?.map((ct: any) => (
                       ct.tags && <Badge key={ct.tags.id} label={ct.tags.name} />

@@ -21,7 +21,7 @@ export default function CourseDetailsPage() {
   }, [courseId]);
 
   async function fetchCourseData() {
-    const { data: courseData, error: courseError } = await supabase.from('courses').select('*').eq('id', courseId).single();
+    const { data: courseData, error: courseError } = await supabase.from('courses').select('*').eq('id', courseId).maybeSingle();
     if (courseError) {
       console.error(courseError);
       return;

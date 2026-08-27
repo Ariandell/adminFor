@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import Select from 'react-select';
+import { v4 as uuidv4 } from 'uuid';
 import { Search, Plus, Pencil, Trash2, AlertTriangle, CreditCard } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useToast } from '../components/Toast';
@@ -9,7 +10,7 @@ import IconButton from '../components/ui/IconButton';
 import Badge from '../components/ui/Badge';
 import EmptyState from '../components/ui/EmptyState';
 import PageHeader from '../components/ui/PageHeader';
-import { cardTranslation, normalizeCardWord, parseCardText } from '../lib/cardText';
+import { buildCardTextFields, normalizeCardWord } from '../lib/cardText';
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 type CardType = 'standard' | 'irregular_verb';
@@ -72,21 +73,24 @@ export default function CardsPage() {
     e.preventDefault();
     setLoading(true);
     const payload = {
-      card_type: form.card_type, level: form.level,
-      original_word: parseCardText(form.card_type === 'irregular_verb' ? form.infinitive : form.original_word).word,
-      translation: cardTranslation(form.card_type === 'irregular_verb' ? form.infinitive : form.original_word, form.translation),
-      transcription: form.transcription || null, example: form.example || null,
-      infinitive: form.card_type === 'irregular_verb' ? parseCardText(form.infinitive).word : null,
-      past_simple: form.card_type === 'irregular_verb' ? parseCardText(form.past_simple).word : null,
-      past_participle: form.card_type === 'irregular_verb' ? parseCardText(form.past_participle).word : null,
+      level: form.level,
+      ...buildCardTextFields({
+        cardType: form.card_type,
+        originalWord: form.original_word,
+        translation: form.translation,
+        transcription: form.transcription,
+        example: form.example,
+        infinitive: form.infinitive,
+        pastSimple: form.past_simple,
+        pastParticiple: form.past_participle,
+      }),
     };
-    const query = form.id
-      ? supabase.from('cards').update(payload).eq('id', form.id).select('id').single()
-      : supabase.from('cards').insert([payload]).select('id').single();
-    const { data: savedCard, error } = await query;
+    const cardId = form.id || uuidv4();
+    const { error } = form.id
+      ? await supabase.from('cards').update(payload).eq('id', form.id)
+      : await supabase.from('cards').insert([{ id: cardId, ...payload }]);
     if (error) { setLoading(false); showToast(error.message.includes('column') ? 'Спочатку застосуйте міграцію Supabase з репозиторію.' : error.message, 'error'); return; }
 
-    const cardId = savedCard?.id || form.id;
     const { error: removeTagsError } = await supabase.from('card_tags').delete().eq('card_id', cardId);
     if (removeTagsError) { setLoading(false); showToast('Картку збережено, але теги не оновлено: ' + removeTagsError.message, 'error'); return; }
     if (formTags.length > 0) {
@@ -128,7 +132,7 @@ export default function CardsPage() {
       </form></Card>}
 
       <Card className="p-0 overflow-hidden">
-        {filtered.length === 0 ? <EmptyState icon={<CreditCard size={28} />} title="Карток не знайдено" /> : <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-paper-100 text-left text-ink-400"><tr><th className="px-5 py-3">Картка</th>{type === 'irregular_verb' && <><th className="px-5 py-3">Past Simple</th><th className="px-5 py-3">Past Participle</th></>}<th className="px-5 py-3">Переклад</th><th className="px-5 py-3">Теги</th><th className="px-5 py-3">Рівень</th><th className="px-5 py-3">Урок</th><th /></tr></thead><tbody className="divide-y divide-lavender-100">{filtered.map(card => <tr key={card.id} className="hover:bg-lavender-50/50"><td className="px-5 py-4 font-bold">{card.infinitive || card.original_word}</td>{type === 'irregular_verb' && <><td className="px-5 py-4">{card.past_simple || '—'}</td><td className="px-5 py-4">{card.past_participle || '—'}</td></>}<td className="px-5 py-4 text-ink-600">{card.translation}</td><td className="px-5 py-4"><div className="flex min-w-36 flex-wrap gap-1">{card.card_tags?.map((link: any) => link.tags && <Badge key={link.tags.id} label={link.tags.name} />)}</div></td><td className="px-5 py-4"><Badge label={card.level || 'A1'} seed={card.level || 'A1'} /></td><td className="px-5 py-4 text-ink-400">{card.lessons?.title || '—'}</td><td className="px-4 py-3"><div className="flex justify-end"><IconButton onClick={() => openEdit(card)}><Pencil size={16} /></IconButton><IconButton variant="danger" onClick={() => remove(card)}><Trash2 size={16} /></IconButton></div></td></tr>)}</tbody></table></div>}
+        {filtered.length === 0 ? <EmptyState icon={<CreditCard size={28} />} title="Карток не знайдено" /> : <div className="overflow-x-auto"><table className="w-full table-fixed text-sm"><thead className="bg-paper-100 text-left text-ink-400"><tr><th className="w-56 px-5 py-3">Картка</th>{type === 'irregular_verb' && <><th className="w-40 px-5 py-3">Past Simple</th><th className="w-40 px-5 py-3">Past Participle</th></>}<th className="w-56 px-5 py-3">Переклад</th><th className="w-52 px-5 py-3">Теги</th><th className="w-24 px-5 py-3">Рівень</th><th className="w-48 px-5 py-3">Урок</th><th className="w-24" /></tr></thead><tbody className="divide-y divide-lavender-100">{filtered.map(card => <tr key={card.id} className="hover:bg-lavender-50/50"><td className="break-words px-5 py-4 font-bold">{card.infinitive || card.original_word}</td>{type === 'irregular_verb' && <><td className="break-words px-5 py-4">{card.past_simple || '—'}</td><td className="break-words px-5 py-4">{card.past_participle || '—'}</td></>}<td className="break-words px-5 py-4 text-ink-600">{card.translation}</td><td className="px-5 py-4"><div className="flex flex-wrap gap-1">{card.card_tags?.map((link: any) => link.tags && <Badge key={link.tags.id} label={link.tags.name} />)}</div></td><td className="px-5 py-4"><Badge label={card.level || 'A1'} seed={card.level || 'A1'} /></td><td className="break-words px-5 py-4 text-ink-400">{card.lessons?.title || '—'}</td><td className="px-4 py-3"><div className="flex justify-end"><IconButton onClick={() => openEdit(card)}><Pencil size={16} /></IconButton><IconButton variant="danger" onClick={() => remove(card)}><Trash2 size={16} /></IconButton></div></td></tr>)}</tbody></table></div>}
       </Card>
     </div>
   );
