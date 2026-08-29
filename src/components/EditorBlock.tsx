@@ -12,11 +12,12 @@ import Undo from 'editorjs-undo';
 import {
   Undo2, Redo2, Type, Heading1, Heading2, Heading3, Bold, Italic, Underline,
   Strikethrough, Highlighter, List as ListIcon, ListOrdered, ListChecks, Table2, Link2,
-  ImagePlus, Music2, Video, Quote as QuoteIcon, Minus, FileQuestion, ChevronDown,
+  ImagePlus, Music2, Video, Quote as QuoteIcon, Minus, FileQuestion, ChevronDown, Sparkles,
 } from 'lucide-react';
 import { CustomAudioTool } from './editor/CustomAudioTool';
 import { CustomImageTool } from './editor/CustomImageTool';
 import { CustomQuizTool } from './editor/CustomQuizTool';
+import { CustomAITool } from './editor/CustomAITool';
 
 interface EditorProps {
   onChange: (data: OutputData) => void;
@@ -51,6 +52,7 @@ function EditorBlockInner({ onChange, initialData }: EditorProps) {
           warning: Warning,
           table: { class: Table, inlineToolbar: true } as unknown as Record<string, unknown>,
           quiz: CustomQuizTool,
+          aiBlock: CustomAITool,
         },
         data: initialData,
         async onChange(api) {
@@ -157,6 +159,7 @@ function EditorBlockInner({ onChange, initialData }: EditorProps) {
           </div>}
         </div>
         <button type="button" onClick={() => insertBlock('quiz')} className={toolbarBtn} title="Додати вправу"><FileQuestion size={18} /></button>
+        <button type="button" onClick={() => insertBlock('aiBlock')} className={toolbarBtn} title="Додати AI-блок"><Sparkles size={18} /></button>
       </div>
 
       <div className="max-h-[70vh] overflow-auto p-4 pt-5 sm:p-8 sm:pt-9">
