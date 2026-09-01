@@ -5,7 +5,7 @@
 1. Відкрийте Supabase Dashboard → SQL Editor.
 2. Виконайте файл `supabase/migrations/202608160001_content_admin.sql`.
 3. У Table Editor перевірте, що з’явилися таблиці `homework`, `achievements`, `cosmetics`, `subscription_plans`, `promo_codes`, `marketing_sources`.
-4. Для нового конструктора досягнень виконайте `supabase/migrations/202609010001_achievement_rules.sql`.
+4. Для конструктора досягнень послідовно виконайте `supabase/migrations/202609010001_achievement_rules.sql` і `supabase/migrations/202609010002_achievement_contexts.sql`.
 4. Перед production-запуском замініть тимчасові permissive RLS-політики `admin_all` на політики для авторизованої ролі адміністратора.
 
 Після міграції в адмінці працюватимуть рівні карток, неправильні дієслова, основні/додаткові курси, premium-замки, домашні завдання, досягнення, косметика, тарифи, промокоди та джерела реклами.

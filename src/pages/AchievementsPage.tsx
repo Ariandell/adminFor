@@ -28,6 +28,7 @@ type Achievement = {
   condition_scope: AchievementScope;
   condition_type: string;
   condition_value: number;
+  condition_course_id: string | null;
   reward_currency: number;
   is_active: boolean;
   created_at: string;
@@ -39,6 +40,7 @@ type AchievementDraft = {
   condition_scope: AchievementScope;
   condition_type: string;
   condition_value: string;
+  condition_course_id: string;
   is_active: boolean;
 };
 
@@ -48,12 +50,14 @@ const emptyDraft = (): AchievementDraft => ({
   condition_scope: 'app',
   condition_type: achievementActions.app[0].value,
   condition_value: '1',
+  condition_course_id: '',
   is_active: true,
 });
 
 export default function AchievementsPage() {
   const { showToast } = useToast();
   const [rows, setRows] = useState<Achievement[]>([]);
+  const [courses, setCourses] = useState<{ id: string; title: string }[]>([]);
   const [draft, setDraft] = useState<AchievementDraft>(emptyDraft);
   const [editing, setEditing] = useState<Achievement | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -64,10 +68,14 @@ export default function AchievementsPage() {
   const [schemaError, setSchemaError] = useState('');
 
   async function fetchAchievements() {
-    const { data, error } = await supabase
-      .from('achievements')
-      .select('id, code, title, description, icon_url, condition_scope, condition_type, condition_value, reward_currency, is_active, created_at')
-      .order('created_at', { ascending: false });
+    const [{ data, error }, courseResult] = await Promise.all([
+      supabase
+        .from('achievements')
+        .select('id, code, title, description, icon_url, condition_scope, condition_type, condition_value, condition_course_id, reward_currency, is_active, created_at')
+        .order('created_at', { ascending: false }),
+      supabase.from('courses').select('id, title').order('title'),
+    ]);
+    if (!courseResult.error) setCourses(courseResult.data || []);
     if (error) {
       setRows([]);
       setSchemaError(error.message);
@@ -79,18 +87,21 @@ export default function AchievementsPage() {
 
   useEffect(() => { fetchAchievements(); }, []);
 
+  const courseTitles = useMemo(() => new Map(courses.map(course => [course.id, course.title])), [courses]);
+
   const filteredRows = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     return rows.filter(row => {
       const matchesScope = scopeFilter === 'all' || row.condition_scope === scopeFilter;
-      const matchesSearch = !query || `${row.title} ${row.description || ''} ${formatAchievementRule(row.condition_scope, row.condition_type, row.condition_value)}`.toLocaleLowerCase().includes(query);
+      const matchesSearch = !query || `${row.title} ${row.description || ''} ${formatAchievementRule(row.condition_scope, row.condition_type, row.condition_value, row.condition_course_id ? courseTitles.get(row.condition_course_id) : undefined)}`.toLocaleLowerCase().includes(query);
       return matchesScope && matchesSearch;
     });
-  }, [rows, scopeFilter, search]);
+  }, [courseTitles, rows, scopeFilter, search]);
 
   const availableActions = achievementActions[draft.condition_scope];
   const selectedAction = getAchievementAction(draft.condition_scope, draft.condition_type);
   const previewTarget = Math.max(1, Number(draft.condition_value) || 1);
+  const selectedCourseTitle = draft.condition_course_id ? courseTitles.get(draft.condition_course_id) : undefined;
 
   function startCreate() {
     setEditing(null);
@@ -109,6 +120,7 @@ export default function AchievementsPage() {
       condition_scope: knownScope,
       condition_type: actionBelongsToScope ? row.condition_type : achievementActions[knownScope][0].value,
       condition_value: String(row.condition_value || 1),
+      condition_course_id: row.condition_course_id || '',
       is_active: row.is_active,
     });
     setImageFile(null);
@@ -127,6 +139,16 @@ export default function AchievementsPage() {
       ...current,
       condition_scope: scope,
       condition_type: achievementActions[scope][0].value,
+      condition_course_id: '',
+    }));
+  }
+
+  function changeAction(action: string) {
+    const nextAction = getAchievementAction(draft.condition_scope, action);
+    setDraft(current => ({
+      ...current,
+      condition_type: action,
+      condition_course_id: nextAction?.requiresCourse ? current.condition_course_id : '',
     }));
   }
 
@@ -144,6 +166,10 @@ export default function AchievementsPage() {
       showToast('Оберіть зображення досягнення', 'error');
       return;
     }
+    if (selectedAction?.requiresCourse && !draft.condition_course_id) {
+      showToast('Оберіть курс для цієї умови', 'error');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -155,6 +181,7 @@ export default function AchievementsPage() {
         condition_scope: draft.condition_scope,
         condition_type: draft.condition_type,
         condition_value: previewTarget,
+        condition_course_id: selectedAction?.requiresCourse ? draft.condition_course_id : null,
         is_active: draft.is_active,
       };
 
@@ -171,7 +198,7 @@ export default function AchievementsPage() {
       closeForm();
       fetchAchievements();
     } catch (error: any) {
-      const needsMigration = error.message?.includes('condition_scope');
+      const needsMigration = error.message?.includes('condition_scope') || error.message?.includes('condition_course_id');
       showToast(needsMigration ? 'Спочатку застосуйте нову міграцію Supabase.' : `Помилка: ${error.message}`, 'error');
     } finally {
       setLoading(false);
@@ -198,7 +225,7 @@ export default function AchievementsPage() {
 
       {schemaError && (
         <div className="mb-5 rounded-xl border border-butter-200 bg-butter-100 p-4 text-sm text-butter-700">
-          Застосуйте міграцію <code>supabase/migrations/202609010001_achievement_rules.sql</code>, щоб увімкнути конструктор правил.
+          Застосуйте міграції <code>202609010001_achievement_rules.sql</code> і <code>202609010002_achievement_contexts.sql</code>, щоб увімкнути конструктор правил.
         </div>
       )}
 
@@ -246,21 +273,30 @@ export default function AchievementsPage() {
                 </label>
                 <label>
                   <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-ink-400">Дія</span>
-                  <select className="field" value={draft.condition_type} onChange={event => setDraft({ ...draft, condition_type: event.target.value })}>
+                  <select className="field" value={draft.condition_type} onChange={event => changeAction(event.target.value)}>
                     {availableActions.map(action => <option key={action.value} value={action.value}>{action.label}</option>)}
                   </select>
                 </label>
                 <label>
                   <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-ink-400">Кількість</span>
                   <div className="relative">
-                    <input required min="1" step="1" type="number" className="field pr-20" value={draft.condition_value} onChange={event => setDraft({ ...draft, condition_value: event.target.value })} />
+                    <input required min="1" max={draft.condition_type === 'course_progress_percent' ? 100 : undefined} step="1" type="number" className="field pr-20" value={draft.condition_value} onChange={event => setDraft({ ...draft, condition_value: event.target.value })} />
                     <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-ink-400">{selectedAction?.unit}</span>
                   </div>
                 </label>
+                {selectedAction?.requiresCourse && (
+                  <label className="md:col-span-3">
+                    <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-ink-400">Конкретний курс</span>
+                    <select required className="field" value={draft.condition_course_id} onChange={event => setDraft({ ...draft, condition_course_id: event.target.value })}>
+                      <option value="">Оберіть курс</option>
+                      {courses.map(course => <option key={course.id} value={course.id}>{course.title}</option>)}
+                    </select>
+                  </label>
+                )}
               </div>
               <div className="mt-3 flex items-center gap-2 rounded-xl bg-mint-50 px-4 py-3 text-sm font-semibold text-ink-600">
                 <Trophy size={17} className="shrink-0 text-mint-600" />
-                Студент отримає досягнення, коли: {formatAchievementRule(draft.condition_scope, draft.condition_type, previewTarget)}
+                Студент отримає досягнення, коли: {formatAchievementRule(draft.condition_scope, draft.condition_type, previewTarget, selectedCourseTitle)}
               </div>
             </div>
 
@@ -313,7 +349,7 @@ export default function AchievementsPage() {
                   </div>
                 </div>
                 <p className="mt-2 line-clamp-2 break-words text-sm text-ink-400">{row.description}</p>
-                <p className="mt-3 break-words text-sm font-semibold text-ink-600">{formatAchievementRule(row.condition_scope, row.condition_type, row.condition_value)}</p>
+                <p className="mt-3 break-words text-sm font-semibold text-ink-600">{formatAchievementRule(row.condition_scope, row.condition_type, row.condition_value, row.condition_course_id ? courseTitles.get(row.condition_course_id) : undefined)}</p>
               </div>
             </Card>
           ))}
