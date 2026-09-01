@@ -57,11 +57,6 @@ export default function ResourceManagerPage({ config }: { config: ResourceConfig
 }
 
 export const resourceConfigs: Record<string, ResourceConfig> = {
-  achievements: { title: 'Досягнення', table: 'achievements', nameKey: 'title', subtitleKey: 'description', fields: [
-    { key: 'title', label: 'Назва', required: true }, { key: 'code', label: 'Код', required: true }, { key: 'description', label: 'Опис', type: 'textarea' },
-    { key: 'condition_type', label: 'Умова', type: 'select', default: 'lessons_completed', options: [{ value: 'lessons_completed', label: 'Пройдено уроків' }, { value: 'cards_learned', label: 'Вивчено карток' }, { value: 'streak_days', label: 'Днів поспіль' }, { value: 'minutes_spent', label: 'Хвилин у додатку' }] },
-    { key: 'condition_value', label: 'Значення', type: 'number', default: 1, list: true }, { key: 'reward_currency', label: 'Нагорода валютою', type: 'number', default: 0, list: true }, { key: 'icon_url', label: 'URL іконки' }, { key: 'is_active', label: 'Активне', type: 'boolean', default: true }
-  ]},
   cosmetics: { title: 'Аватари й рамки', table: 'cosmetics', nameKey: 'title', subtitleKey: 'image_url', fields: [
     { key: 'title', label: 'Назва', required: true }, { key: 'cosmetic_type', label: 'Тип', type: 'select', default: 'avatar', options: [{ value: 'avatar', label: 'Аватар' }, { value: 'frame', label: 'Рамка' }], list: true }, { key: 'image_url', label: 'URL зображення', required: true }, { key: 'price_currency', label: 'Ціна у валюті', type: 'number', default: 0, list: true }, { key: 'access_tier', label: 'Доступ', type: 'select', default: 'free', options: [{ value: 'free', label: 'Безкоштовно' }, { value: 'basic', label: 'Basic' }, { value: 'premium', label: 'Premium' }] }, { key: 'is_active', label: 'Активне', type: 'boolean', default: true }
   ]},

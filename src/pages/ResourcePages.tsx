@@ -1,6 +1,7 @@
 import ResourceManagerPage, { resourceConfigs } from './ResourceManagerPage';
+import AchievementsPage from './AchievementsPage';
 
-export function AchievementsPage() { return <ResourceManagerPage config={resourceConfigs.achievements} />; }
+export { AchievementsPage };
 export function CosmeticsPage() { return <ResourceManagerPage config={resourceConfigs.cosmetics} />; }
 export function SubscriptionsPage() { return <ResourceManagerPage config={resourceConfigs.subscriptions} />; }
 export function PromoCodesPage() { return <ResourceManagerPage config={resourceConfigs.promos} />; }
