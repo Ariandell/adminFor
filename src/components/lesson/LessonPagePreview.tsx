@@ -147,6 +147,5 @@ export default function LessonPagePreview({ page, pageNumber, totalPages }: Prop
         </div>
       </div>
     </div>
-    <p className="mt-3 text-xs leading-relaxed text-ink-600">На компактному телефоні аркуш зменшується цілком — межі сторінок не змінюються. Передперегляд наближений до Flutter: шрифти й інтерактивні блоки можуть трохи відрізнятися, тому краще залишати близько 10% запасу. Якщо аркуш переповнений, перенесіть блоки на наступний.</p>
   </aside>;
 }
