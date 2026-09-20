@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import EditorBlock from '../components/EditorBlock';
+import EditorBlock, { type EditorBlockHandle } from '../components/EditorBlock';
 import { type OutputData } from '@editorjs/editorjs';
 import Select from 'react-select';
 import { v4 as uuidv4 } from 'uuid';
@@ -14,6 +14,8 @@ import IconButton from '../components/ui/IconButton';
 import EmptyState from '../components/ui/EmptyState';
 import FileDropzone from '../components/ui/FileDropzone';
 import Badge from '../components/ui/Badge';
+import LessonPagePreview from '../components/lesson/LessonPagePreview';
+import { contentWithLessonPages, lessonPagesFromContent, type LessonDraftPage } from '../lib/lessonPages';
 
 type CardType = 'standard' | 'irregular_verb';
 
@@ -24,6 +26,13 @@ export default function LessonEditorPage() {
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState<OutputData | undefined>();
+  const [pages, setPages] = useState<LessonDraftPage[]>(() => [{ id: uuidv4(), blocks: [] }]);
+  const [activePageIndex, setActivePageIndex] = useState(0);
+  const [editorRevision, setEditorRevision] = useState(0);
+  const editorRef = useRef<EditorBlockHandle>(null);
+  const [introStory, setIntroStory] = useState('');
+  const [introOutcomes, setIntroOutcomes] = useState('');
+  const [introNote, setIntroNote] = useState('');
 
   // Cards state
   const [cards, setCards] = useState<any[]>([]);
@@ -86,6 +95,12 @@ export default function LessonEditorPage() {
     if (lesson) {
       setTitle(lesson.title);
       setContent(lesson.content);
+      setPages(lessonPagesFromContent(lesson.content, uuidv4));
+      setActivePageIndex(0);
+      const intro = lesson.content?.introduction;
+      setIntroStory(typeof intro?.story === 'string' ? intro.story : (lesson.description || ''));
+      setIntroOutcomes(Array.isArray(intro?.outcomes) ? intro.outcomes.filter((item: unknown) => typeof item === 'string').join('\n') : '');
+      setIntroNote(typeof intro?.note === 'string' ? intro.note : '');
     }
 
     const { data: cardsData } = await supabase.from('cards').select('*, card_tags(tags(*))').eq('lesson_id', lessonId);
@@ -98,13 +113,31 @@ export default function LessonEditorPage() {
 
   async function handleSaveLesson(e: React.FormEvent) {
     e.preventDefault();
+    const currentEditor = await editorRef.current?.save();
+    const latestPages = currentEditor
+      ? pages.map((page, index) => index === activePageIndex ? { ...page, blocks: currentEditor.blocks ?? [] } : page)
+      : pages;
+    setPages(latestPages);
+    const emptyPage = latestPages.findIndex(page => page.blocks.length === 0);
+    if (emptyPage !== -1) {
+      setActivePageIndex(emptyPage);
+      showToast(`Сторінка ${emptyPage + 1} порожня. Додайте контент або видаліть її.`, 'error');
+      return;
+    }
     setLoading(true);
 
     try {
       const lessonData = {
         course_id: courseId,
         title,
-        content,
+        content: {
+          ...contentWithLessonPages(content, latestPages),
+          introduction: {
+            story: introStory.trim(),
+            outcomes: introOutcomes.split('\n').map(line => line.trim()).filter(Boolean),
+            note: introNote.trim(),
+          },
+        },
       };
 
       if (lessonId) {
@@ -256,9 +289,58 @@ export default function LessonEditorPage() {
   if (!initialDataLoaded) return <div className="p-8 text-ink-400">Завантаження...</div>;
 
   const visibleCards = cards.filter(card => (card.card_type || 'standard') === activeCardType);
+  const activePage = pages[activePageIndex] ?? pages[0];
+
+  function updatePage(id: string, data: OutputData) {
+    setPages(current => current.map(page => page.id === id ? { ...page, blocks: data.blocks ?? [] } : page));
+  }
+
+  async function selectPage(index: number) {
+    if (index === activePageIndex) return;
+    const latest = await editorRef.current?.save();
+    if (latest) updatePage(activePage.id, latest);
+    setActivePageIndex(index);
+  }
+
+  async function addPage() {
+    const latest = await editorRef.current?.save();
+    if (latest) updatePage(activePage.id, latest);
+    const nextIndex = activePageIndex + 1;
+    const newPage = { id: uuidv4(), blocks: [] };
+    setPages(current => [...current.slice(0, nextIndex), newPage, ...current.slice(nextIndex)]);
+    setActivePageIndex(nextIndex);
+  }
+
+  function removePage() {
+    if (pages.length === 1) return;
+    if (activePage.blocks.length > 0 && !confirm(`Видалити сторінку ${activePageIndex + 1} разом із її блоками?`)) return;
+    setPages(current => current.filter(page => page.id !== activePage.id));
+    setActivePageIndex(Math.max(0, activePageIndex - 1));
+  }
+
+  async function moveLastBlockForward() {
+    const latest = await editorRef.current?.save();
+    const sourceBlocks = latest?.blocks ?? activePage.blocks;
+    if (sourceBlocks.length <= 1) return;
+    const nextId = uuidv4();
+    setPages(current => {
+      const next = [...current];
+      const sourceIndex = next.findIndex(page => page.id === activePage.id);
+      if (sourceIndex === -1) return current;
+      const moved = sourceBlocks[sourceBlocks.length - 1];
+      next[sourceIndex] = { ...next[sourceIndex], blocks: sourceBlocks.slice(0, -1) };
+      if (next[sourceIndex + 1]) {
+        next[sourceIndex + 1] = { ...next[sourceIndex + 1], blocks: [moved, ...next[sourceIndex + 1].blocks] };
+      } else {
+        next.push({ id: nextId, blocks: [moved] });
+      }
+      return next;
+    });
+    setEditorRevision(value => value + 1);
+  }
 
   return (
-    <div className="max-w-5xl mx-auto pb-20">
+    <div className="max-w-7xl mx-auto pb-20">
       <Link to={`/courses/${courseId}`} className="inline-flex items-center text-lavender-600 hover:text-lavender-700 mb-6 font-semibold">
         <ArrowLeft size={16} className="mr-2" /> Назад до курсу
       </Link>
@@ -272,9 +354,41 @@ export default function LessonEditorPage() {
           <input required value={title} onChange={e => setTitle(e.target.value)} type="text" className="w-full border border-lavender-200 rounded-lg p-2 text-lg focus:outline-none focus:ring-2 focus:ring-lavender-300" placeholder="Назва уроку..." />
         </div>
 
+        <section className="mb-8 rounded-xl border border-lavender-200 bg-lavender-50 p-5">
+          <h2 className="text-lg font-semibold mb-2">Вступна сторінка в блокноті</h2>
+          <p className="text-sm text-ink-500 mb-4">Учень бачить її зі змісту, перед початком уроку. Ці поля не стають сторінками завдань.</p>
+          <label htmlFor="intro-story" className="block text-sm font-medium mb-1">Коротка зав’язка</label>
+          <textarea id="intro-story" value={introStory} onChange={e => setIntroStory(e.target.value)} rows={3} className="w-full rounded-lg border border-lavender-200 bg-white p-3 mb-4" placeholder="2–3 речення про ситуацію, з якою учень навчиться справлятися." />
+          <label htmlFor="intro-outcomes" className="block text-sm font-medium mb-1">Після уроку учень зможе…</label>
+          <textarea id="intro-outcomes" value={introOutcomes} onChange={e => setIntroOutcomes(e.target.value)} rows={3} className="w-full rounded-lg border border-lavender-200 bg-white p-3 mb-4" placeholder="Кожен результат з нового рядка. Рекомендовано 2–3 конкретні вміння." />
+          <label htmlFor="intro-note" className="block text-sm font-medium mb-1">Примітка на полях · необов’язково</label>
+          <textarea id="intro-note" value={introNote} onChange={e => setIntroNote(e.target.value)} rows={2} className="w-full rounded-lg border border-lavender-200 bg-white p-3" placeholder="Підказка або потрібне попереднє знання." />
+        </section>
+
         <div className="mb-6">
-          <label className="block text-sm font-medium text-ink-600 mb-2">Контент уроку</label>
-          <EditorBlock initialData={content} onChange={setContent} />
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-ink">Сторінки уроку</h2>
+              <p className="text-sm text-ink-600">Наповнюйте кожен аркуш окремо. Розділювачі старих уроків перетворяться на межі сторінок під час редагування.</p>
+            </div>
+            <Button type="button" variant="secondary" onClick={() => void addPage()}><Plus size={16} /> Додати сторінку</Button>
+          </div>
+          <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Сторінки уроку">
+            {pages.map((page, index) => (
+              <button key={page.id} type="button" role="tab" aria-selected={index === activePageIndex} onClick={() => void selectPage(index)}
+                className={`rounded-lg border px-3 py-2 text-sm font-semibold ${index === activePageIndex ? 'border-ink bg-ink text-white' : 'border-lavender-200 bg-white text-ink-600 hover:border-lavender-400'}`}>
+                Аркуш {index + 1} <span className="opacity-65">· {page.blocks.length}</span>
+              </button>
+            ))}
+          </div>
+          <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_430px]">
+            <div className="min-w-0">
+              <EditorBlock ref={editorRef} key={`${activePage.id}-${editorRevision}`} initialData={{ ...content, blocks: activePage.blocks }} onChange={data => updatePage(activePage.id, data)} />
+              <button type="button" onClick={() => void moveLastBlockForward()} disabled={activePage.blocks.length <= 1} className="mt-3 mr-5 text-sm font-medium text-ink hover:underline disabled:opacity-40">Перенести останній блок на наступний аркуш →</button>
+              {pages.length > 1 && <button type="button" onClick={removePage} className="mt-3 text-sm font-medium text-rose-700 hover:underline">Видалити цей аркуш</button>}
+            </div>
+            <LessonPagePreview page={activePage} pageNumber={activePageIndex + 1} totalPages={pages.length} />
+          </div>
         </div>
 
         <div className="flex justify-between items-center">

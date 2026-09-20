@@ -1,10 +1,9 @@
-import { useEffect, useRef, memo, useCallback, useState } from 'react';
+import { useEffect, useRef, memo, useCallback, useState, forwardRef, useImperativeHandle } from 'react';
 import EditorJS, { type OutputData } from '@editorjs/editorjs';
 import Header from '@editorjs/header';
 import Paragraph from '@editorjs/paragraph';
 import List from '@editorjs/list';
 import Quote from '@editorjs/quote';
-import Delimiter from '@editorjs/delimiter';
 import Warning from '@editorjs/warning';
 import Table from '@editorjs/table';
 import YoutubeEmbed from 'editorjs-youtube-embed';
@@ -12,7 +11,7 @@ import Undo from 'editorjs-undo';
 import {
   Undo2, Redo2, Type, Heading1, Heading2, Heading3, Bold, Italic, Underline,
   Strikethrough, Highlighter, List as ListIcon, ListOrdered, ListChecks, Table2, Link2,
-  ImagePlus, Music2, Video, Quote as QuoteIcon, Minus, FileQuestion, ChevronDown, Sparkles,
+  ImagePlus, Music2, Video, Quote as QuoteIcon, FileQuestion, ChevronDown, Sparkles,
 } from 'lucide-react';
 import { CustomAudioTool } from './editor/CustomAudioTool';
 import { CustomImageTool } from './editor/CustomImageTool';
@@ -24,9 +23,13 @@ interface EditorProps {
   initialData?: OutputData;
 }
 
+export interface EditorBlockHandle {
+  save: () => Promise<OutputData | null>;
+}
+
 type MenuName = 'blocks' | 'format' | 'lists' | 'media';
 
-function EditorBlockInner({ onChange, initialData }: EditorProps) {
+const EditorBlockInner = forwardRef<EditorBlockHandle, EditorProps>(function EditorBlockInner({ onChange, initialData }, ref) {
   const editorRef = useRef<EditorJS | null>(null);
   const undoRef = useRef<any>(null);
   const isInitialized = useRef(false);
@@ -35,6 +38,15 @@ function EditorBlockInner({ onChange, initialData }: EditorProps) {
   const [openMenu, setOpenMenu] = useState<MenuName | null>(null);
 
   const stableOnChange = useCallback(onChange, [onChange]);
+
+  useImperativeHandle(ref, () => ({
+    save: async () => {
+      const editor = editorRef.current;
+      if (!editor) return null;
+      await editor.isReady;
+      return editor.saver.save();
+    },
+  }), []);
 
   useEffect(() => {
     if (!isInitialized.current && holderRef.current) {
@@ -48,7 +60,6 @@ function EditorBlockInner({ onChange, initialData }: EditorProps) {
           youtubeEmbed: YoutubeEmbed as unknown as Record<string, unknown>,
           audio: CustomAudioTool as unknown as Record<string, unknown>,
           image: CustomImageTool as unknown as Record<string, unknown>,
-          delimiter: Delimiter,
           warning: Warning,
           table: { class: Table, inlineToolbar: true } as unknown as Record<string, unknown>,
           quiz: CustomQuizTool,
@@ -123,7 +134,6 @@ function EditorBlockInner({ onChange, initialData }: EditorProps) {
             <button type="button" className={menuItem} onClick={() => insertBlock('header', { text: '', level: 3 })}><Heading3 size={17} /> Заголовок 3</button>
             <div className="my-1 border-t border-white/10" />
             <button type="button" className={menuItem} onClick={() => insertBlock('quote', { text: '', caption: '', alignment: 'left' })}><QuoteIcon size={17} /> Цитата</button>
-            <button type="button" className={menuItem} onClick={() => insertBlock('delimiter')}><Minus size={17} /> Розділювач</button>
           </div>}
         </div>
 
@@ -167,6 +177,6 @@ function EditorBlockInner({ onChange, initialData }: EditorProps) {
       </div>
     </div>
   );
-}
+});
 
 export default memo(EditorBlockInner);
