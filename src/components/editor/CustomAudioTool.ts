@@ -1,5 +1,6 @@
 import { icons, makeUploader, makeDeleteButton, makeCard } from './editorUi';
 import { uploadAudio } from './r2Upload';
+import type { BlockAPI } from '@editorjs/editorjs';
 
 interface AudioData {
   url?: string;
@@ -9,13 +10,15 @@ interface AudioData {
 
 export class CustomAudioTool {
   private data: AudioData;
+  private block: BlockAPI;
   private wrapper: HTMLElement | null = null;
 
   static get toolbox() {
     return { title: 'Аудіо', icon: icons.music };
   }
 
-  constructor({ data }: { data: AudioData }) {
+  constructor({ data, block }: { data: AudioData; block: BlockAPI }) {
+    this.block = block;
     const initialData = data || {};
     if (initialData.audioURL && !initialData.url) {
       this.data = { url: initialData.audioURL, title: initialData.title || 'Аудіо файл' };
@@ -27,6 +30,7 @@ export class CustomAudioTool {
   render(): HTMLElement {
     this.wrapper = document.createElement('div');
     this.wrapper.classList.add('audio-tool');
+    this.wrapper.dataset.editorMediaStatus = this.data.url ? 'ready' : 'empty';
 
     if (this.data.url) {
       this._createAudioElement(this.data.url, this.data.title);
@@ -50,17 +54,21 @@ export class CustomAudioTool {
     input.addEventListener('change', async (e: Event) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
+      if (this.wrapper) this.wrapper.dataset.editorMediaStatus = 'pending';
       button.querySelector('span:last-child')!.textContent = 'Завантаження...';
       button.disabled = true;
       try {
         const url = await this._uploadFile(file);
         this.data = { url, title: file.name };
+        this.block.dispatchChange();
         if (this.wrapper) {
+          this.wrapper.dataset.editorMediaStatus = 'ready';
           this.wrapper.innerHTML = '';
           this._createAudioElement(url, file.name);
         }
       } catch (error) {
         console.error('Upload error:', error);
+        if (this.wrapper) this.wrapper.dataset.editorMediaStatus = 'error';
         button.querySelector('span:last-child')!.textContent = 'Помилка — спробуйте ще раз';
         button.disabled = false;
       }
@@ -84,7 +92,8 @@ export class CustomAudioTool {
     const deleteBtn = makeDeleteButton();
     deleteBtn.addEventListener('click', () => {
       this.data = {};
-      if (this.wrapper) { this.wrapper.innerHTML = ''; this._createUploader(); }
+      this.block.dispatchChange();
+      if (this.wrapper) { this.wrapper.dataset.editorMediaStatus = 'empty'; this.wrapper.innerHTML = ''; this._createUploader(); }
     });
 
     const audio = document.createElement('audio');

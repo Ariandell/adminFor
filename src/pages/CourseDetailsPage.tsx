@@ -10,6 +10,14 @@ import EmptyState from '../components/ui/EmptyState';
 
 export default function CourseDetailsPage() {
   const { courseId } = useParams();
+  if (!courseId) {
+    return <div className="p-8 text-ink-400">Курс не знайдено. <Link to="/courses">До курсів</Link></div>;
+  }
+  return <OrdinaryCourseDetails key={courseId} />;
+}
+
+function OrdinaryCourseDetails() {
+  const { courseId } = useParams();
   const { showToast } = useToast();
   const [course, setCourse] = useState<any>(null);
   const [lessons, setLessons] = useState<any[]>([]);
@@ -37,8 +45,12 @@ export default function CourseDetailsPage() {
   }
 
   async function deleteLesson(lesson: any) {
+    if (lesson.course_id !== courseId) return;
     if (!confirm(`Видалити урок «${lesson.title}» разом з його тестами та картками? Цю дію не можна скасувати.`)) return;
     try {
+      const { data: ownedLesson, error: ownershipError } = await supabase.from('lessons').select('id').eq('id', lesson.id).eq('course_id', courseId).maybeSingle();
+      if (ownershipError) throw ownershipError;
+      if (!ownedLesson) throw new Error('Урок не належить цьому курсу.');
       const { data: cardRows, error: cardsError } = await supabase.from('cards').select('id').eq('lesson_id', lesson.id);
       if (cardsError) throw cardsError;
       const cardIds = (cardRows || []).map(c => c.id);
@@ -50,7 +62,7 @@ export default function CourseDetailsPage() {
         if (delCardsError) throw delCardsError;
       }
 
-      const { error } = await supabase.from('lessons').delete().eq('id', lesson.id);
+      const { error } = await supabase.from('lessons').delete().eq('id', lesson.id).eq('course_id', courseId);
       if (error) throw error;
 
       showToast('Урок видалено', 'success');

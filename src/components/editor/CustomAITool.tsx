@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import type { API, BlockAPI } from '@editorjs/editorjs';
 import { AIBlockForm, type AIBlockData } from './AIBlockForm';
+import { protectNativeFields } from './nativeFieldEvents';
 
 const emptyAIBlock: AIBlockData = {
   question: '',
@@ -26,16 +27,7 @@ export class CustomAITool {
     this.wrapper = document.createElement('div');
     this.reactRoot = null;
 
-    const stopBubbling = (event: Event) => {
-      const target = event.target as HTMLElement;
-      if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.isContentEditable) {
-        event.stopPropagation();
-      }
-    };
-
-    (['keydown', 'keyup', 'keypress', 'paste', 'cut', 'copy'] as const).forEach(eventName => {
-      this.wrapper.addEventListener(eventName, stopBubbling);
-    });
+    protectNativeFields(this.wrapper);
   }
 
   private handleDelete = () => {
@@ -52,6 +44,7 @@ export class CustomAITool {
         data: this.data,
         onChange: (data: AIBlockData) => {
           this.data = data;
+          this.block.dispatchChange();
         },
         onDelete: this.handleDelete,
       })
@@ -62,10 +55,6 @@ export class CustomAITool {
 
   save(): AIBlockData {
     return this.data;
-  }
-
-  validate(data: AIBlockData): boolean {
-    return Boolean(data.question.trim() && data.evaluationPrompt.trim());
   }
 
   destroy() {

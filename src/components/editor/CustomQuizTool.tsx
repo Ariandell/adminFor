@@ -2,6 +2,7 @@ import ReactDOM from 'react-dom/client';
 import React from 'react';
 import type { API, BlockAPI } from '@editorjs/editorjs';
 import { QuizBuilderForm, type QuizData } from './QuizBuilderForm';
+import { protectNativeFields } from './nativeFieldEvents';
 
 export class CustomQuizTool {
   private data: QuizData;
@@ -21,23 +22,7 @@ export class CustomQuizTool {
     this.wrapper = document.createElement('div');
     this.reactRoot = null;
 
-    // Editor.js перехоплює Backspace/Enter/Tab/стрілки на рівні блоків,
-    // через що у полях тесту не можна видаляти текст побуквенно.
-    // Зупиняємо спливання подій клавіатури та буфера обміну з полів вводу.
-    const stopBubbling = (e: Event) => {
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.tagName === 'SELECT' ||
-        target.isContentEditable
-      ) {
-        e.stopPropagation();
-      }
-    };
-    (['keydown', 'keyup', 'keypress', 'paste', 'cut', 'copy'] as const).forEach(eventName => {
-      this.wrapper.addEventListener(eventName, stopBubbling);
-    });
+    protectNativeFields(this.wrapper);
   }
 
   private handleDelete = () => {
@@ -55,6 +40,7 @@ export class CustomQuizTool {
         initialData: this.data,
         onChange: (newData: QuizData) => {
           this.data = newData;
+          this.block.dispatchChange();
         },
         onDelete: this.handleDelete,
       })

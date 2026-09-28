@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useParams, useNavigate, Link, useBlocker } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import EditorBlock, { type EditorBlockHandle } from '../components/EditorBlock';
-import { type OutputData } from '@editorjs/editorjs';
+import { type OutputBlockData, type OutputData } from '@editorjs/editorjs';
 import Select from 'react-select';
 import { v4 as uuidv4 } from 'uuid';
 import { ArrowLeft, Plus, Pencil, Trash2, ImageIcon, LayoutGrid } from 'lucide-react';
@@ -14,21 +14,27 @@ import IconButton from '../components/ui/IconButton';
 import EmptyState from '../components/ui/EmptyState';
 import FileDropzone from '../components/ui/FileDropzone';
 import Badge from '../components/ui/Badge';
-import LessonPagePreview from '../components/lesson/LessonPagePreview';
-import { contentWithLessonPages, lessonPagesFromContent, type LessonDraftPage } from '../lib/lessonPages';
+import { contentWithLessonSheet, lessonSheetBlocks } from '../lib/lessonSheet';
+import { youtubeVideoId } from '../lib/youtubeVideo';
 
 type CardType = 'standard' | 'irregular_verb';
 
 export default function LessonEditorPage() {
+  const { courseId, lessonId } = useParams();
+  if (!courseId) {
+    return <div className="p-8 text-ink-400">Курс не знайдено. <Link to="/courses">До курсів</Link></div>;
+  }
+  return <OrdinaryLessonEditor key={`${courseId}/${lessonId ?? 'new'}`} />;
+}
+
+function OrdinaryLessonEditor() {
   const { courseId, lessonId } = useParams();
   const navigate = useNavigate();
   const { showToast } = useToast();
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState<OutputData | undefined>();
-  const [pages, setPages] = useState<LessonDraftPage[]>(() => [{ id: uuidv4(), blocks: [] }]);
-  const [activePageIndex, setActivePageIndex] = useState(0);
-  const [editorRevision, setEditorRevision] = useState(0);
+  const [initialBlocks, setInitialBlocks] = useState<OutputBlockData[]>([]);
   const editorRef = useRef<EditorBlockHandle>(null);
   const [introStory, setIntroStory] = useState('');
   const [introOutcomes, setIntroOutcomes] = useState('');
@@ -54,16 +60,44 @@ export default function LessonEditorPage() {
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
+  const saveInProgress = useRef(false);
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [lessonDirty, setLessonDirty] = useState(false);
+  const lessonDirtyRef = useRef(false);
+  const editVersion = useRef(0);
+  const skipNavigationWarning = useRef(false);
+  const markLessonDirty = useCallback(() => {
+    editVersion.current += 1;
+    lessonDirtyRef.current = true;
+    setLessonDirty(true);
+  }, []);
+  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
+    !skipNavigationWarning.current && (lessonDirtyRef.current || showCardForm) &&
+    (currentLocation.pathname !== nextLocation.pathname || currentLocation.search !== nextLocation.search)
+  );
+
+  useEffect(() => {
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!lessonDirtyRef.current && !showCardForm) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, [showCardForm]);
 
   useEffect(() => {
     fetchTags();
     if (lessonId) {
       fetchLessonData();
     } else {
-      setInitialDataLoaded(true);
+      supabase.from('courses').select('id').eq('id', courseId).maybeSingle().then(({ data, error }) => {
+        if (error || !data) setLoadError('Курс не знайдено або недоступний.');
+        setInitialDataLoaded(true);
+      });
     }
-  }, [lessonId]);
+  }, [courseId, lessonId]);
 
   useEffect(() => {
     const word = parseCardText(cardType === 'irregular_verb' ? infinitive : newCardWord).word;
@@ -91,47 +125,83 @@ export default function LessonEditorPage() {
   }
 
   async function fetchLessonData() {
-    const { data: lesson } = await supabase.from('lessons').select('*').eq('id', lessonId).maybeSingle();
+    const { data: lesson, error } = await supabase.from('lessons').select('*').eq('id', lessonId).eq('course_id', courseId).maybeSingle();
+    if (error || !lesson) {
+      setLoadError('Урок не належить цьому курсу або недоступний.');
+      setInitialDataLoaded(true);
+      return;
+    }
     if (lesson) {
       setTitle(lesson.title);
       setContent(lesson.content);
-      setPages(lessonPagesFromContent(lesson.content, uuidv4));
-      setActivePageIndex(0);
+      setInitialBlocks(lessonSheetBlocks(lesson.content));
       const intro = lesson.content?.introduction;
       setIntroStory(typeof intro?.story === 'string' ? intro.story : (lesson.description || ''));
       setIntroOutcomes(Array.isArray(intro?.outcomes) ? intro.outcomes.filter((item: unknown) => typeof item === 'string').join('\n') : '');
       setIntroNote(typeof intro?.note === 'string' ? intro.note : '');
     }
 
-    const { data: cardsData } = await supabase.from('cards').select('*, card_tags(tags(*))').eq('lesson_id', lessonId);
-    if (cardsData) {
-      setCards(cardsData);
-    }
+    await fetchCards();
 
     setInitialDataLoaded(true);
   }
 
-  async function handleSaveLesson(e: React.FormEvent) {
-    e.preventDefault();
-    const currentEditor = await editorRef.current?.save();
-    const latestPages = currentEditor
-      ? pages.map((page, index) => index === activePageIndex ? { ...page, blocks: currentEditor.blocks ?? [] } : page)
-      : pages;
-    setPages(latestPages);
-    const emptyPage = latestPages.findIndex(page => page.blocks.length === 0);
-    if (emptyPage !== -1) {
-      setActivePageIndex(emptyPage);
-      showToast(`Сторінка ${emptyPage + 1} порожня. Додайте контент або видаліть її.`, 'error');
-      return;
+  async function fetchCards() {
+    if (!lessonId) return;
+    const { data: cardsData } = await supabase.from('cards').select('*, card_tags(tags(*))').eq('lesson_id', lessonId);
+    if (cardsData) {
+      setCards(cardsData);
     }
+  }
+
+  async function requireEditableLesson() {
+    if (!initialDataLoaded || loadError || !courseId) {
+      throw new Error('Матеріал недоступний у звичайному редакторі.');
+    }
+    if (lessonId) {
+      const { data, error } = await supabase.from('lessons').select('id').eq('id', lessonId).eq('course_id', courseId).maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error('Урок не належить цьому курсу.');
+    }
+  }
+
+  async function handleSaveLesson(e?: { preventDefault(): void }) {
+    e?.preventDefault();
+    if (!initialDataLoaded || loadError || saveInProgress.current) return;
+    saveInProgress.current = true;
     setLoading(true);
 
     try {
+      if (!title.trim()) {
+        showToast('Вкажіть назву уроку.', 'error');
+        return;
+      }
+      const currentEditor = await editorRef.current?.save();
+      if (!currentEditor) {
+        showToast('Редактор ще не готовий. Спробуйте зберегти ще раз.', 'error');
+        return;
+      }
+      const savedVersion = editVersion.current;
+      const latestBlocks = lessonSheetBlocks(currentEditor);
+      if (latestBlocks.length === 0) {
+        showToast('Додайте матеріал уроку перед збереженням.', 'error');
+        return;
+      }
+      if (latestBlocks.some(block => block.type === 'youtubeEmbed' && !youtubeVideoId(String(block.data?.url ?? '')))) {
+        showToast('Вкажіть коректне посилання в кожному відеоблоці.', 'error');
+        return;
+      }
+      if (latestBlocks.some(block => block.type === 'aiBlock' &&
+        (!String(block.data?.question ?? '').trim() || !String(block.data?.evaluationPrompt ?? '').trim()))) {
+        showToast('Заповніть питання й промпт AI-блоку або видаліть незавершений блок.', 'error');
+        return;
+      }
+      await requireEditableLesson();
       const lessonData = {
         course_id: courseId,
-        title,
+        title: title.trim(),
         content: {
-          ...contentWithLessonPages(content, latestPages),
+          ...contentWithLessonSheet(content, latestBlocks),
           introduction: {
             story: introStory.trim(),
             outcomes: introOutcomes.split('\n').map(line => line.trim()).filter(Boolean),
@@ -139,11 +209,16 @@ export default function LessonEditorPage() {
           },
         },
       };
-
       if (lessonId) {
-        const { error } = await supabase.from('lessons').update(lessonData).eq('id', lessonId);
+        const { error } = await supabase.from('lessons').update(lessonData).eq('id', lessonId).eq('course_id', courseId).select('id').single();
         if (error) throw error;
-        showToast('Урок оновлено!', 'success');
+        if (editVersion.current === savedVersion) {
+          lessonDirtyRef.current = false;
+          setLessonDirty(false);
+          showToast('Урок оновлено!', 'success');
+        } else {
+          showToast('Попередню версію збережено. Є нові незбережені зміни.', 'info');
+        }
       } else {
         // Get next order_index
         const { count } = await supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('course_id', courseId);
@@ -152,6 +227,8 @@ export default function LessonEditorPage() {
         const newLessonId = uuidv4();
         const { error } = await supabase.from('lessons').insert([{ id: newLessonId, ...lessonData, order_index: orderIndex }]);
         if (error) throw error;
+        lessonDirtyRef.current = false;
+        skipNavigationWarning.current = true;
         showToast('Урок створено!', 'success');
         navigate(`/courses/${courseId}/lessons/${newLessonId}`);
       }
@@ -159,8 +236,20 @@ export default function LessonEditorPage() {
       showToast('Помилка: ' + error.message, 'error');
     } finally {
       setLoading(false);
+      saveInProgress.current = false;
     }
   }
+
+  useEffect(() => {
+    const onSaveShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        void handleSaveLesson();
+      }
+    };
+    window.addEventListener('keydown', onSaveShortcut);
+    return () => window.removeEventListener('keydown', onSaveShortcut);
+  });
 
   async function uploadImage(file: File, path: string) {
     const { error } = await supabase.storage.from('course-images').upload(path, file);
@@ -206,6 +295,10 @@ export default function LessonEditorPage() {
     }
     setLoading(true);
     try {
+      await requireEditableLesson();
+      if (editingCardId && !cards.some(card => card.id === editingCardId && card.lesson_id === lessonId)) {
+        throw new Error('Картка не належить цьому уроку.');
+      }
       let grayUrl = null;
       let colorUrl = null;
 
@@ -228,7 +321,7 @@ export default function LessonEditorPage() {
 
       const cardId = editingCardId || uuidv4();
       const { error: cardError } = editingCardId
-        ? await supabase.from('cards').update(cardPayload).eq('id', editingCardId)
+        ? await supabase.from('cards').update(cardPayload).eq('id', editingCardId).eq('lesson_id', lessonId).select('id').single()
         : await supabase.from('cards').insert([{ id: cardId, ...cardPayload, image_gray_url: grayUrl, image_color_url: colorUrl }]);
 
       if (cardError) throw cardError;
@@ -244,7 +337,7 @@ export default function LessonEditorPage() {
       showToast(editingCardId ? 'Картку оновлено' : 'Картку додано', 'success');
       setActiveCardType(cardType);
       resetCardForm();
-      fetchLessonData();
+      await fetchCards();
 
     } catch (err: any) {
       showToast('Помилка: ' + err.message, 'error');
@@ -255,8 +348,15 @@ export default function LessonEditorPage() {
 
   async function deleteCard(id: string) {
     if (!confirm('Видалити картку?')) return;
-    await supabase.from('cards').delete().eq('id', id);
-    fetchLessonData();
+    try {
+      await requireEditableLesson();
+      if (!cards.some(card => card.id === id && card.lesson_id === lessonId)) throw new Error('Картка не належить цьому уроку.');
+      const { error } = await supabase.from('cards').delete().eq('id', id).eq('lesson_id', lessonId);
+      if (error) throw error;
+      await fetchCards();
+    } catch (error: any) {
+      showToast('Помилка: ' + error.message, 'error');
+    }
   }
 
   async function handleDeleteLesson() {
@@ -264,6 +364,7 @@ export default function LessonEditorPage() {
     if (!confirm(`Видалити урок «${title}» разом з його тестами та картками? Цю дію не можна скасувати.`)) return;
     setLoading(true);
     try {
+      await requireEditableLesson();
       const { data: cardRows, error: cardsError } = await supabase.from('cards').select('id').eq('lesson_id', lessonId);
       if (cardsError) throw cardsError;
       const cardIds = (cardRows || []).map(c => c.id);
@@ -275,10 +376,11 @@ export default function LessonEditorPage() {
         if (delCardsError) throw delCardsError;
       }
 
-      const { error } = await supabase.from('lessons').delete().eq('id', lessonId);
+      const { error } = await supabase.from('lessons').delete().eq('id', lessonId).eq('course_id', courseId);
       if (error) throw error;
 
       showToast('Урок видалено', 'success');
+      skipNavigationWarning.current = true;
       navigate(`/courses/${courseId}`);
     } catch (error: any) {
       showToast('Помилка: ' + error.message, 'error');
@@ -286,109 +388,57 @@ export default function LessonEditorPage() {
     }
   }
 
+  if (loadError) return <div className="p-8 text-ink-400">{loadError} <Link to="/courses">До курсів</Link></div>;
   if (!initialDataLoaded) return <div className="p-8 text-ink-400">Завантаження...</div>;
 
   const visibleCards = cards.filter(card => (card.card_type || 'standard') === activeCardType);
-  const activePage = pages[activePageIndex] ?? pages[0];
-
-  function updatePage(id: string, data: OutputData) {
-    setPages(current => current.map(page => page.id === id ? { ...page, blocks: data.blocks ?? [] } : page));
-  }
-
-  async function selectPage(index: number) {
-    if (index === activePageIndex) return;
-    const latest = await editorRef.current?.save();
-    if (latest) updatePage(activePage.id, latest);
-    setActivePageIndex(index);
-  }
-
-  async function addPage() {
-    const latest = await editorRef.current?.save();
-    if (latest) updatePage(activePage.id, latest);
-    const nextIndex = activePageIndex + 1;
-    const newPage = { id: uuidv4(), blocks: [] };
-    setPages(current => [...current.slice(0, nextIndex), newPage, ...current.slice(nextIndex)]);
-    setActivePageIndex(nextIndex);
-  }
-
-  function removePage() {
-    if (pages.length === 1) return;
-    if (activePage.blocks.length > 0 && !confirm(`Видалити сторінку ${activePageIndex + 1} разом із її блоками?`)) return;
-    setPages(current => current.filter(page => page.id !== activePage.id));
-    setActivePageIndex(Math.max(0, activePageIndex - 1));
-  }
-
-  async function moveLastBlockForward() {
-    const latest = await editorRef.current?.save();
-    const sourceBlocks = latest?.blocks ?? activePage.blocks;
-    if (sourceBlocks.length <= 1) return;
-    const nextId = uuidv4();
-    setPages(current => {
-      const next = [...current];
-      const sourceIndex = next.findIndex(page => page.id === activePage.id);
-      if (sourceIndex === -1) return current;
-      const moved = sourceBlocks[sourceBlocks.length - 1];
-      next[sourceIndex] = { ...next[sourceIndex], blocks: sourceBlocks.slice(0, -1) };
-      if (next[sourceIndex + 1]) {
-        next[sourceIndex + 1] = { ...next[sourceIndex + 1], blocks: [moved, ...next[sourceIndex + 1].blocks] };
-      } else {
-        next.push({ id: nextId, blocks: [moved] });
-      }
-      return next;
-    });
-    setEditorRevision(value => value + 1);
-  }
-
   return (
     <div className="max-w-7xl mx-auto pb-20">
+      {blocker.state === 'blocked' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) blocker.reset(); }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="unsaved-lesson-title" onKeyDown={event => { if (event.key === 'Escape') blocker.reset(); }} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h2 id="unsaved-lesson-title" className="text-xl font-bold text-ink">Є незбережені зміни</h2>
+            <p className="mt-2 text-sm text-ink-600">Якщо вийти зараз, зміни в уроці або незавершеній картці буде втрачено.</p>
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <Button type="button" variant="ghost" autoFocus onClick={() => blocker.reset()}>Продовжити редагування</Button>
+              <Button type="button" onClick={() => blocker.proceed()}>Вийти без збереження</Button>
+            </div>
+          </div>
+        </div>
+      )}
       <Link to={`/courses/${courseId}`} className="inline-flex items-center text-lavender-600 hover:text-lavender-700 mb-6 font-semibold">
         <ArrowLeft size={16} className="mr-2" /> Назад до курсу
       </Link>
 
-      <h1 className="text-3xl font-bold mb-8">{lessonId ? 'Редагувати урок' : 'Створити новий урок'}</h1>
+      <div className="mb-8 flex flex-wrap items-center gap-3">
+        <h1 className="text-3xl font-bold">{lessonId ? 'Редагувати урок' : 'Створити новий урок'}</h1>
+        {(lessonDirty || showCardForm) && <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">Незбережені зміни</span>}
+      </div>
 
       {/* Lesson Form */}
       <Card className="mb-8">
         <div className="mb-6">
           <label className="block text-sm font-medium text-ink-600 mb-1">Назва уроку</label>
-          <input required value={title} onChange={e => setTitle(e.target.value)} type="text" className="w-full border border-lavender-200 rounded-lg p-2 text-lg focus:outline-none focus:ring-2 focus:ring-lavender-300" placeholder="Назва уроку..." />
+          <input required value={title} onChange={e => { setTitle(e.target.value); markLessonDirty(); }} type="text" className="w-full border border-lavender-200 rounded-lg p-2 text-lg focus:outline-none focus:ring-2 focus:ring-lavender-300" placeholder="Назва уроку..." />
         </div>
 
-        <section className="mb-8 rounded-xl border border-lavender-200 bg-lavender-50 p-5">
-          <h2 className="text-lg font-semibold mb-2">Вступна сторінка в блокноті</h2>
-          <p className="text-sm text-ink-500 mb-4">Учень бачить її зі змісту, перед початком уроку. Ці поля не стають сторінками завдань.</p>
+        <details className="mb-8 rounded-xl border border-lavender-200 bg-lavender-50 p-5">
+          <summary className="cursor-pointer text-lg font-semibold">Збережений вступ · попередній формат</summary>
+          <p className="mt-2 mb-4 text-sm text-ink-500">Ці поля зберігаються для сумісності зі старими уроками. Поточний екран читання їх не показує; основний матеріал додавайте в аркуш нижче.</p>
           <label htmlFor="intro-story" className="block text-sm font-medium mb-1">Коротка зав’язка</label>
-          <textarea id="intro-story" value={introStory} onChange={e => setIntroStory(e.target.value)} rows={3} className="w-full rounded-lg border border-lavender-200 bg-white p-3 mb-4" placeholder="2–3 речення про ситуацію, з якою учень навчиться справлятися." />
+          <textarea id="intro-story" value={introStory} onChange={e => { setIntroStory(e.target.value); markLessonDirty(); }} rows={3} className="w-full rounded-lg border border-lavender-200 bg-white p-3 mb-4" placeholder="2–3 речення про ситуацію, з якою учень навчиться справлятися." />
           <label htmlFor="intro-outcomes" className="block text-sm font-medium mb-1">Після уроку учень зможе…</label>
-          <textarea id="intro-outcomes" value={introOutcomes} onChange={e => setIntroOutcomes(e.target.value)} rows={3} className="w-full rounded-lg border border-lavender-200 bg-white p-3 mb-4" placeholder="Кожен результат з нового рядка. Рекомендовано 2–3 конкретні вміння." />
+          <textarea id="intro-outcomes" value={introOutcomes} onChange={e => { setIntroOutcomes(e.target.value); markLessonDirty(); }} rows={3} className="w-full rounded-lg border border-lavender-200 bg-white p-3 mb-4" placeholder="Кожен результат з нового рядка. Рекомендовано 2–3 конкретні вміння." />
           <label htmlFor="intro-note" className="block text-sm font-medium mb-1">Примітка на полях · необов’язково</label>
-          <textarea id="intro-note" value={introNote} onChange={e => setIntroNote(e.target.value)} rows={2} className="w-full rounded-lg border border-lavender-200 bg-white p-3" placeholder="Підказка або потрібне попереднє знання." />
-        </section>
+          <textarea id="intro-note" value={introNote} onChange={e => { setIntroNote(e.target.value); markLessonDirty(); }} rows={2} className="w-full rounded-lg border border-lavender-200 bg-white p-3" placeholder="Підказка або потрібне попереднє знання." />
+        </details>
 
         <div className="mb-6">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-ink">Сторінки уроку</h2>
-              <p className="text-sm text-ink-600">Наповнюйте кожен аркуш окремо. Розділювачі старих уроків перетворяться на межі сторінок під час редагування.</p>
-            </div>
-            <Button type="button" variant="secondary" onClick={() => void addPage()}><Plus size={16} /> Додати сторінку</Button>
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-ink">Матеріал уроку · один аркуш</h2>
+            <p className="text-sm text-ink-600">Додавайте блоки в порядку читання. У застосунку урок прокручується суцільно, без меж сторінок.</p>
           </div>
-          <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Сторінки уроку">
-            {pages.map((page, index) => (
-              <button key={page.id} type="button" role="tab" aria-selected={index === activePageIndex} onClick={() => void selectPage(index)}
-                className={`rounded-lg border px-3 py-2 text-sm font-semibold ${index === activePageIndex ? 'border-ink bg-ink text-white' : 'border-lavender-200 bg-white text-ink-600 hover:border-lavender-400'}`}>
-                Аркуш {index + 1} <span className="opacity-65">· {page.blocks.length}</span>
-              </button>
-            ))}
-          </div>
-          <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_430px]">
-            <div className="min-w-0">
-              <EditorBlock ref={editorRef} key={`${activePage.id}-${editorRevision}`} initialData={{ ...content, blocks: activePage.blocks }} onChange={data => updatePage(activePage.id, data)} />
-              <button type="button" onClick={() => void moveLastBlockForward()} disabled={activePage.blocks.length <= 1} className="mt-3 mr-5 text-sm font-medium text-ink hover:underline disabled:opacity-40">Перенести останній блок на наступний аркуш →</button>
-              {pages.length > 1 && <button type="button" onClick={removePage} className="mt-3 text-sm font-medium text-rose-700 hover:underline">Видалити цей аркуш</button>}
-            </div>
-            <LessonPagePreview page={activePage} pageNumber={activePageIndex + 1} totalPages={pages.length} />
-          </div>
+          <EditorBlock ref={editorRef} initialData={{ ...content, blocks: initialBlocks }} onDirty={markLessonDirty} />
         </div>
 
         <div className="flex justify-between items-center">

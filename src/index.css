@@ -185,3 +185,4 @@ body::after {
 .word-sheet h3.ce-header { font-size: 1.3rem; font-weight: 600; line-height: 1.35; margin: 0.6em 0 0.3em; }
 
 .word-sheet .ce-paragraph { line-height: 1.7; }
+.word-sheet mark { background-color: #c9f4e8; color: inherit; }

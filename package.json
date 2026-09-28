@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "test": "node --test --experimental-strip-types tests/cardText.test.ts tests/achievementRules.test.ts tests/lessonPages.test.ts",
+    "test": "node --test --experimental-strip-types tests/cardText.test.ts tests/achievementRules.test.ts tests/lessonPages.test.ts tests/lessonSheet.test.ts tests/editorLink.test.ts tests/youtubeVideo.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -21,7 +21,6 @@
     "@editorjs/warning": "^1.4.1",
     "@supabase/supabase-js": "^2.110.0",
     "editorjs-undo": "^2.0.28",
-    "editorjs-youtube-embed": "^1.0.3",
     "lucide-react": "^1.24.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

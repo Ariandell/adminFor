@@ -1,5 +1,7 @@
 import { supabase } from '../../supabaseClient';
 import { icons, makeUploader, makeDeleteButton, makeCard } from './editorUi';
+import { protectNativeFields } from './nativeFieldEvents';
+import type { BlockAPI } from '@editorjs/editorjs';
 
 interface ImageData {
   url?: string;
@@ -13,19 +15,23 @@ interface ImageData {
 
 export class CustomImageTool {
   private data: ImageData;
+  private block: BlockAPI;
   private wrapper: HTMLElement | null = null;
 
   static get toolbox() {
     return { title: 'Зображення', icon: icons.image };
   }
 
-  constructor({ data }: { data: ImageData }) {
+  constructor({ data, block }: { data: ImageData; block: BlockAPI }) {
     this.data = data || {};
+    this.block = block;
   }
 
   render(): HTMLElement {
     this.wrapper = document.createElement('div');
     this.wrapper.classList.add('image-tool');
+    this.wrapper.dataset.editorMediaStatus = this.data.url || this.data.file?.url ? 'ready' : 'empty';
+    protectNativeFields(this.wrapper);
 
     if (this.data.url || this.data.file?.url) {
       this._createImageElement();
@@ -49,17 +55,21 @@ export class CustomImageTool {
     input.addEventListener('change', async (e: Event) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
+      if (this.wrapper) this.wrapper.dataset.editorMediaStatus = 'pending';
       button.querySelector('span:last-child')!.textContent = 'Завантаження...';
       button.disabled = true;
       try {
         const url = await this._uploadFile(file);
         this.data = { url, file: { url, name: file.name, size: file.size }, caption: '' };
+        this.block.dispatchChange();
         if (this.wrapper) {
+          this.wrapper.dataset.editorMediaStatus = 'ready';
           this.wrapper.innerHTML = '';
           this._createImageElement();
         }
       } catch (error) {
         console.error('Upload error:', error);
+        if (this.wrapper) this.wrapper.dataset.editorMediaStatus = 'error';
         button.querySelector('span:last-child')!.textContent = 'Помилка — спробуйте ще раз';
         button.disabled = false;
       }
@@ -93,13 +103,15 @@ export class CustomImageTool {
     captionInput.addEventListener('input', (e: Event) => {
       const target = e.target as HTMLInputElement;
       this.data.caption = target.value;
+      this.block.dispatchChange();
       img.alt = target.value;
     });
 
     const deleteBtn = makeDeleteButton();
     deleteBtn.addEventListener('click', () => {
       this.data = {};
-      if (this.wrapper) { this.wrapper.innerHTML = ''; this._createUploader(); }
+      this.block.dispatchChange();
+      if (this.wrapper) { this.wrapper.dataset.editorMediaStatus = 'empty'; this.wrapper.innerHTML = ''; this._createUploader(); }
     });
 
     row.appendChild(captionInput);
