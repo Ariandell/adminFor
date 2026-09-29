@@ -47,6 +47,7 @@ function OrdinaryLessonEditor() {
 
   // New Card Form
   const [showCardForm, setShowCardForm] = useState(false);
+  const [cardDirty, setCardDirty] = useState(false);
   const [cardType, setCardType] = useState<CardType>('standard');
   const [newCardWord, setNewCardWord] = useState('');
   const [infinitive, setInfinitive] = useState('');
@@ -65,6 +66,7 @@ function OrdinaryLessonEditor() {
   const [loadError, setLoadError] = useState('');
   const [lessonDirty, setLessonDirty] = useState(false);
   const lessonDirtyRef = useRef(false);
+  const cardDirtyRef = useRef(false);
   const editVersion = useRef(0);
   const skipNavigationWarning = useRef(false);
   const markLessonDirty = useCallback(() => {
@@ -72,14 +74,18 @@ function OrdinaryLessonEditor() {
     lessonDirtyRef.current = true;
     setLessonDirty(true);
   }, []);
+  const markCardDirty = useCallback(() => {
+    cardDirtyRef.current = true;
+    setCardDirty(true);
+  }, []);
   const blocker = useBlocker(({ currentLocation, nextLocation }) =>
-    !skipNavigationWarning.current && (lessonDirtyRef.current || showCardForm) &&
+    !skipNavigationWarning.current && (lessonDirtyRef.current || cardDirtyRef.current) &&
     (currentLocation.pathname !== nextLocation.pathname || currentLocation.search !== nextLocation.search)
   );
 
   useEffect(() => {
     const warnBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!lessonDirtyRef.current && !showCardForm) return;
+      if (!lessonDirtyRef.current && !cardDirtyRef.current) return;
       event.preventDefault();
       event.returnValue = '';
     };
@@ -259,6 +265,8 @@ function OrdinaryLessonEditor() {
   }
 
   function resetCardForm() {
+    cardDirtyRef.current = false;
+    setCardDirty(false);
     setShowCardForm(false);
     setEditingCardId(null);
     setNewCardWord('');
@@ -412,7 +420,7 @@ function OrdinaryLessonEditor() {
 
       <div className="mb-8 flex flex-wrap items-center gap-3">
         <h1 className="text-3xl font-bold">{lessonId ? 'Редагувати урок' : 'Створити новий урок'}</h1>
-        {(lessonDirty || showCardForm) && <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">Незбережені зміни</span>}
+        {(lessonDirty || cardDirty) && <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">Незбережені зміни</span>}
       </div>
 
       {/* Lesson Form */}
@@ -470,7 +478,7 @@ function OrdinaryLessonEditor() {
           </div>
 
           {showCardForm && (
-            <form onSubmit={handleSaveCard} className={cardClass('accent', 'mb-8 space-y-4')}>
+            <form onSubmit={handleSaveCard} onInput={markCardDirty} onChange={markCardDirty} className={cardClass('accent', 'mb-8 space-y-4')}>
               <h3 className="text-lg font-bold">{editingCardId ? 'Редагування' : 'Нова картка'} · {cardType === 'irregular_verb' ? 'Неправильне дієслово' : 'Звичайне слово'}</h3>
               {cardType === 'standard' ? (
                 <div className="grid gap-4 sm:grid-cols-2">
