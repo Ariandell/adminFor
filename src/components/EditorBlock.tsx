@@ -1,9 +1,6 @@
 import { useEffect, useRef, memo, useState, forwardRef, useImperativeHandle } from 'react';
 import EditorJS, { type OutputData } from '@editorjs/editorjs';
-import Header from '@editorjs/header';
-import Paragraph from '@editorjs/paragraph';
 import List from '@editorjs/list';
-import Quote from '@editorjs/quote';
 import Warning from '@editorjs/warning';
 import Table from '@editorjs/table';
 import Undo from 'editorjs-undo';
@@ -19,6 +16,8 @@ import { CustomAITool } from './editor/CustomAITool';
 import { CustomYoutubeTool } from './editor/CustomYoutubeTool';
 import { normalizeEditorLink } from '../lib/editorLink';
 import { MarkerTool, StrikeTool, UnderlineTool, toggleInlineTag } from './editor/inlineFormats';
+import { inlineMarks, RichHeader, RichParagraph, RichQuote } from './editor/richTextTools';
+import { normalizePastedHtml } from './editor/normalizePastedHtml';
 
 interface EditorProps {
   initialData?: OutputData;
@@ -59,14 +58,35 @@ const EditorBlockInner = forwardRef<EditorBlockHandle, EditorProps>(function Edi
   }), []);
 
   useEffect(() => {
+    const holder = holderRef.current;
+    const normalizePaste = (event: ClipboardEvent) => {
+      if (!holder || !(event.target instanceof Element) || event.target.closest('input, textarea, select')) return;
+      const clipboard = event.clipboardData;
+      const originalHtml = clipboard?.getData('text/html');
+      if (!clipboard || !originalHtml) return;
+      const normalizedHtml = normalizePastedHtml(originalHtml);
+      if (normalizedHtml === originalHtml) return;
+      const normalizedClipboard = new DataTransfer();
+      normalizedClipboard.setData('text/html', normalizedHtml);
+      normalizedClipboard.setData('text/plain', clipboard.getData('text/plain'));
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      event.target.dispatchEvent(new ClipboardEvent('paste', {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: normalizedClipboard,
+      }));
+    };
+    holder?.addEventListener('paste', normalizePaste, true);
     if (!isInitialized.current && holderRef.current) {
       const editor = new EditorJS({
         holder: holderRef.current,
+        sanitizer: inlineMarks,
         tools: {
-          header: { class: Header, inlineToolbar: true } as unknown as Record<string, unknown>,
-          paragraph: { class: Paragraph, inlineToolbar: true } as unknown as Record<string, unknown>,
+          header: { class: RichHeader, inlineToolbar: true } as unknown as Record<string, unknown>,
+          paragraph: { class: RichParagraph, inlineToolbar: true } as unknown as Record<string, unknown>,
           list: { class: List, inlineToolbar: true } as unknown as Record<string, unknown>,
-          quote: { class: Quote, inlineToolbar: true } as unknown as Record<string, unknown>,
+          quote: { class: RichQuote, inlineToolbar: true } as unknown as Record<string, unknown>,
           youtubeEmbed: CustomYoutubeTool,
           audio: CustomAudioTool as unknown as Record<string, unknown>,
           image: CustomImageTool as unknown as Record<string, unknown>,
@@ -100,6 +120,7 @@ const EditorBlockInner = forwardRef<EditorBlockHandle, EditorProps>(function Edi
     }
 
     return () => {
+      holder?.removeEventListener('paste', normalizePaste, true);
       if (editorRef.current?.destroy) {
         editorRef.current.destroy();
         editorRef.current = null;

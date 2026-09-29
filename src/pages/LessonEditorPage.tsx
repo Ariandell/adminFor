@@ -279,7 +279,27 @@ function OrdinaryLessonEditor() {
     setColorFile(null);
   }
 
+  function confirmDiscardCardDraft() {
+    return !cardDirtyRef.current || window.confirm('Є незбережені зміни картки. Відкинути їх?');
+  }
+
+  function switchCardType(type: CardType) {
+    if (type === activeCardType) return;
+    if (!confirmDiscardCardDraft()) return;
+    resetCardForm();
+    setActiveCardType(type);
+  }
+
+  function openNewCard() {
+    if (!confirmDiscardCardDraft()) return;
+    resetCardForm();
+    setCardType(activeCardType);
+    setShowCardForm(true);
+  }
+
   function openCardEditor(card: any) {
+    if (!confirmDiscardCardDraft()) return;
+    resetCardForm();
     const type = (card.card_type || 'standard') as CardType;
     setEditingCardId(card.id);
     setCardType(type);
@@ -468,17 +488,18 @@ function OrdinaryLessonEditor() {
             <div>
               <h2 className="text-2xl font-bold">Картки</h2>
               <div className="mt-3 inline-flex rounded-xl border border-lavender-100 bg-white p-1">
-                <button type="button" onClick={() => { resetCardForm(); setActiveCardType('standard'); }} className={`rounded-lg px-4 py-2 text-sm font-bold transition ${activeCardType === 'standard' ? 'bg-lavender-100 text-lavender-700' : 'text-ink-400 hover:text-ink'}`}>Звичайні слова</button>
-                <button type="button" onClick={() => { resetCardForm(); setActiveCardType('irregular_verb'); }} className={`rounded-lg px-4 py-2 text-sm font-bold transition ${activeCardType === 'irregular_verb' ? 'bg-lavender-100 text-lavender-700' : 'text-ink-400 hover:text-ink'}`}>Неправильні дієслова</button>
+                <button type="button" onClick={() => switchCardType('standard')} className={`rounded-lg px-4 py-2 text-sm font-bold transition ${activeCardType === 'standard' ? 'bg-lavender-100 text-lavender-700' : 'text-ink-400 hover:text-ink'}`}>Звичайні слова</button>
+                <button type="button" onClick={() => switchCardType('irregular_verb')} className={`rounded-lg px-4 py-2 text-sm font-bold transition ${activeCardType === 'irregular_verb' ? 'bg-lavender-100 text-lavender-700' : 'text-ink-400 hover:text-ink'}`}>Неправильні дієслова</button>
               </div>
             </div>
-            <Button size="sm" onClick={() => { resetCardForm(); setCardType(activeCardType); setShowCardForm(true); }}>
+            <Button size="sm" onClick={openNewCard}>
               <Plus size={18} /> {activeCardType === 'irregular_verb' ? 'Додати дієслово' : 'Додати слово'}
             </Button>
           </div>
 
           {showCardForm && (
             <form onSubmit={handleSaveCard} onInput={markCardDirty} onChange={markCardDirty} className={cardClass('accent', 'mb-8 space-y-4')}>
+              <fieldset disabled={loading} className="space-y-4">
               <h3 className="text-lg font-bold">{editingCardId ? 'Редагування' : 'Нова картка'} · {cardType === 'irregular_verb' ? 'Неправильне дієслово' : 'Звичайне слово'}</h3>
               {cardType === 'standard' ? (
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -502,24 +523,26 @@ function OrdinaryLessonEditor() {
                 <label className="block text-sm font-medium text-ink-600 mb-1">Теги</label>
                 <Select
                   isMulti
+                  isDisabled={loading}
                   options={tagsOptions}
                   value={newCardTags}
-                  onChange={(val) => setNewCardTags(val as any[])}
+                  onChange={(val) => { setNewCardTags(val as any[]); markCardDirty(); }}
                   placeholder="Оберіть теги..."
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4 pt-2">
-                <FileDropzone label="Чорно-біле фото" file={grayFile} onChange={setGrayFile} />
-                <FileDropzone label="Кольорове фото" file={colorFile} onChange={setColorFile} />
+                <FileDropzone label="Чорно-біле фото" file={grayFile} onChange={file => { setGrayFile(file); markCardDirty(); }} />
+                <FileDropzone label="Кольорове фото" file={colorFile} onChange={file => { setColorFile(file); markCardDirty(); }} />
               </div>
 
               <div className="flex justify-end gap-2 mt-4">
-                <Button type="button" variant="ghost" onClick={resetCardForm}>Скасувати</Button>
+                <Button type="button" variant="ghost" onClick={() => { if (confirmDiscardCardDraft()) resetCardForm(); }}>Скасувати</Button>
                 <Button disabled={loading} type="submit">
                   {loading ? 'Збереження...' : editingCardId ? 'Зберегти зміни' : 'Зберегти картку'}
                 </Button>
               </div>
+              </fieldset>
             </form>
           )}
 

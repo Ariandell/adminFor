@@ -9,6 +9,7 @@ export class CustomQuizTool {
   private api: API;
   private block: BlockAPI;
   private wrapper: HTMLElement;
+  private revision = 0;
   private reactRoot: ReturnType<typeof ReactDOM.createRoot> | null;
 
   static get toolbox() {
@@ -40,6 +41,8 @@ export class CustomQuizTool {
         initialData: this.data,
         onChange: (newData: QuizData) => {
           this.data = newData;
+          // editorjs-undo watches DOM mutations; input.value changes alone are invisible.
+          this.wrapper.dataset.editorRevision = String(++this.revision);
           this.block.dispatchChange();
         },
         onDelete: this.handleDelete,

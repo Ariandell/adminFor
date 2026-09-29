@@ -14,6 +14,7 @@ export class CustomAITool {
   private api: API;
   private block: BlockAPI;
   private wrapper: HTMLElement;
+  private revision = 0;
   private reactRoot: ReturnType<typeof ReactDOM.createRoot> | null;
 
   static get toolbox() {
@@ -44,6 +45,7 @@ export class CustomAITool {
         data: this.data,
         onChange: (data: AIBlockData) => {
           this.data = data;
+          this.wrapper.dataset.editorRevision = String(++this.revision);
           this.block.dispatchChange();
         },
         onDelete: this.handleDelete,
