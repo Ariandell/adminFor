@@ -284,6 +284,7 @@ function OrdinaryLessonEditor() {
   }
 
   function switchCardType(type: CardType) {
+    if (saveInProgress.current) return;
     if (type === activeCardType) return;
     if (!confirmDiscardCardDraft()) return;
     resetCardForm();
@@ -291,6 +292,7 @@ function OrdinaryLessonEditor() {
   }
 
   function openNewCard() {
+    if (saveInProgress.current) return;
     if (!confirmDiscardCardDraft()) return;
     resetCardForm();
     setCardType(activeCardType);
@@ -298,6 +300,7 @@ function OrdinaryLessonEditor() {
   }
 
   function openCardEditor(card: any) {
+    if (saveInProgress.current) return;
     if (!confirmDiscardCardDraft()) return;
     resetCardForm();
     const type = (card.card_type || 'standard') as CardType;
@@ -317,10 +320,12 @@ function OrdinaryLessonEditor() {
 
   async function handleSaveCard(e: React.FormEvent) {
     e.preventDefault();
+    if (saveInProgress.current) return;
     if (!lessonId) {
       showToast('Спочатку збережіть урок, щоб додавати картки!', 'info');
       return;
     }
+    saveInProgress.current = true;
     setLoading(true);
     try {
       await requireEditableLesson();
@@ -371,11 +376,15 @@ function OrdinaryLessonEditor() {
       showToast('Помилка: ' + err.message, 'error');
     } finally {
       setLoading(false);
+      saveInProgress.current = false;
     }
   }
 
   async function deleteCard(id: string) {
+    if (saveInProgress.current) return;
     if (!confirm('Видалити картку?')) return;
+    saveInProgress.current = true;
+    setLoading(true);
     try {
       await requireEditableLesson();
       if (!cards.some(card => card.id === id && card.lesson_id === lessonId)) throw new Error('Картка не належить цьому уроку.');
@@ -384,12 +393,17 @@ function OrdinaryLessonEditor() {
       await fetchCards();
     } catch (error: any) {
       showToast('Помилка: ' + error.message, 'error');
+    } finally {
+      setLoading(false);
+      saveInProgress.current = false;
     }
   }
 
   async function handleDeleteLesson() {
+    if (saveInProgress.current) return;
     if (!lessonId) return;
     if (!confirm(`Видалити урок «${title}» разом з його тестами та картками? Цю дію не можна скасувати.`)) return;
+    saveInProgress.current = true;
     setLoading(true);
     try {
       await requireEditableLesson();
@@ -412,7 +426,9 @@ function OrdinaryLessonEditor() {
       navigate(`/courses/${courseId}`);
     } catch (error: any) {
       showToast('Помилка: ' + error.message, 'error');
+    } finally {
       setLoading(false);
+      saveInProgress.current = false;
     }
   }
 
@@ -488,11 +504,11 @@ function OrdinaryLessonEditor() {
             <div>
               <h2 className="text-2xl font-bold">Картки</h2>
               <div className="mt-3 inline-flex rounded-xl border border-lavender-100 bg-white p-1">
-                <button type="button" onClick={() => switchCardType('standard')} className={`rounded-lg px-4 py-2 text-sm font-bold transition ${activeCardType === 'standard' ? 'bg-lavender-100 text-lavender-700' : 'text-ink-400 hover:text-ink'}`}>Звичайні слова</button>
-                <button type="button" onClick={() => switchCardType('irregular_verb')} className={`rounded-lg px-4 py-2 text-sm font-bold transition ${activeCardType === 'irregular_verb' ? 'bg-lavender-100 text-lavender-700' : 'text-ink-400 hover:text-ink'}`}>Неправильні дієслова</button>
+                <button type="button" disabled={loading} onClick={() => switchCardType('standard')} className={`rounded-lg px-4 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${activeCardType === 'standard' ? 'bg-lavender-100 text-lavender-700' : 'text-ink-400 hover:text-ink'}`}>Звичайні слова</button>
+                <button type="button" disabled={loading} onClick={() => switchCardType('irregular_verb')} className={`rounded-lg px-4 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${activeCardType === 'irregular_verb' ? 'bg-lavender-100 text-lavender-700' : 'text-ink-400 hover:text-ink'}`}>Неправильні дієслова</button>
               </div>
             </div>
-            <Button size="sm" onClick={openNewCard}>
+            <Button size="sm" disabled={loading} onClick={openNewCard}>
               <Plus size={18} /> {activeCardType === 'irregular_verb' ? 'Додати дієслово' : 'Додати слово'}
             </Button>
           </div>
@@ -564,8 +580,8 @@ function OrdinaryLessonEditor() {
                         : card.original_word}
                     </h3>
                     <div className="-mt-1 -mr-1 flex shrink-0">
-                      <IconButton className="p-1" title="Редагувати картку" onClick={() => openCardEditor(card)}><Pencil size={16} /></IconButton>
-                      <IconButton variant="danger" className="p-1" title="Видалити картку" onClick={() => deleteCard(card.id)}><Trash2 size={16} /></IconButton>
+                      <IconButton className="p-1" disabled={loading} title="Редагувати картку" onClick={() => openCardEditor(card)}><Pencil size={16} /></IconButton>
+                      <IconButton variant="danger" className="p-1" disabled={loading} title="Видалити картку" onClick={() => deleteCard(card.id)}><Trash2 size={16} /></IconButton>
                     </div>
                   </div>
                   <p className="break-words text-sm text-ink-600">{card.translation}</p>
