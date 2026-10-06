@@ -16,7 +16,7 @@ import { CustomAITool } from './editor/CustomAITool';
 import { CustomYoutubeTool } from './editor/CustomYoutubeTool';
 import { CustomDelimiterTool } from './editor/CustomDelimiterTool';
 import { normalizeEditorLink } from '../lib/editorLink';
-import { createEditorHistory, editorContentChanged, editorHistoryShortcut, type HistoryAction } from '../lib/editorHistory';
+import { createEditorHistory, editorContentChanged, editorHistoryShortcut, preserveEditorScroll, type HistoryAction } from '../lib/editorHistory';
 import { MarkerTool, StrikeTool, UnderlineTool, toggleInlineTag } from './editor/inlineFormats';
 import { inlineMarks, RichHeader, RichParagraph, RichQuote } from './editor/richTextTools';
 import { normalizePastedHtml } from './editor/normalizePastedHtml';
@@ -154,7 +154,10 @@ const EditorBlockInner = forwardRef<EditorBlockHandle, EditorProps>(function Edi
             if (!data.blocks.length) data.blocks = [{ id: editor.blocks.getBlockByIndex(0)?.id, type: 'paragraph', data: { text: '' } }];
             return data;
           };
-          const history = createEditorHistory(saveForHistory, undo, error => console.error('Editor history:', error));
+          const history = createEditorHistory(
+            saveForHistory, undo, error => console.error('Editor history:', error),
+            () => preserveEditorScroll(holder),
+          );
           const baseline = await saveForHistory();
           if (disposed) { history.dispose(); return; }
           undo.initialize(baseline);

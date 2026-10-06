@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createEditorHistory, editorContentChanged, editorHistoryShortcut } from '../src/lib/editorHistory.ts';
+import { createEditorHistory, editorContentChanged, editorHistoryShortcut, preserveEditorScroll } from '../src/lib/editorHistory.ts';
 
 const shortcut = (values = {}) => ({
   key: 'z', code: 'KeyZ', ctrlKey: true, metaKey: false,
@@ -129,4 +129,87 @@ test('a failed snapshot leaves content intact and does not block the next undo',
   assert.equal(f.errors.length, 1);
   await history.run('undo');
   assert.equal(f.text(), 'original');
+});
+
+test('history preserves the viewport until delayed caret restoration finishes', async () => {
+  const f = fixture();
+  const events: string[] = [];
+  let finishCaret!: () => void;
+  const originalUndo = f.backend.undo;
+  f.backend.undo = async () => { events.push('undo'); await originalUndo(); };
+  const history = createEditorHistory(f.read, f.backend, error => f.errors.push(error), () => {
+    events.push('capture');
+    return {
+      finish: () => new Promise<void>(resolve => { events.push('restore'); finishCaret = resolve; }),
+      cancel: () => finishCaret(),
+    };
+  });
+  f.edit('edited');
+  const undo = history.run('undo');
+  await new Promise(resolve => setImmediate(resolve));
+  const redo = history.run('redo');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(events, ['capture', 'undo', 'restore']);
+  finishCaret();
+  await undo;
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.text(), 'edited');
+  history.dispose(); // Cancels the second viewport guard and releases the queue.
+  await redo;
+  assert.deepEqual(f.errors, []);
+});
+
+function viewportFixture() {
+  const events = new EventTarget();
+  let nextId = 0;
+  const frames = new Map<number, () => void>();
+  const timers = new Map<number, () => void>();
+  const view = {
+    KeyboardEvent: class extends Event {},
+    addEventListener: events.addEventListener.bind(events),
+    removeEventListener: events.removeEventListener.bind(events),
+    requestAnimationFrame(callback: () => void) { frames.set(++nextId, callback); return nextId; },
+    cancelAnimationFrame(id: number) { frames.delete(id); },
+    setTimeout(callback: () => void) { timers.set(++nextId, callback); return nextId; },
+    clearTimeout(id: number) { timers.delete(id); },
+  };
+  const element = (top: number, parentElement: unknown) => ({
+    scrollTop: top, scrollLeft: 0, parentElement,
+    ownerDocument: { defaultView: view },
+    scrollTo({ top, left }: { top: number; left: number }) { this.scrollTop = top; this.scrollLeft = left; },
+  });
+  const page = element(400, null);
+  const sheet = element(1200, page);
+  const guard = preserveEditorScroll(sheet as unknown as HTMLElement);
+  return { events, sheet, page, guard, frames, timers };
+}
+
+test('delayed caret scrolling restores both the sheet and page; listeners release afterwards', async () => {
+  const f = viewportFixture();
+  const done = f.guard.finish();
+  // Simulate the plugin restoring focus after its async undo has already returned.
+  f.page.scrollTop = 0;
+  f.sheet.scrollTop = 40;
+  f.events.dispatchEvent(new Event('scroll'));
+  assert.equal(f.page.scrollTop, 400);
+  assert.equal(f.sheet.scrollTop, 1200);
+  for (const callback of [...f.timers.values()]) callback();
+  await done;
+  assert.equal(f.frames.size, 0);
+  assert.equal(f.timers.size, 0);
+  f.page.scrollTop = 700;
+  f.events.dispatchEvent(new Event('scroll'));
+  assert.equal(f.page.scrollTop, 700);
+});
+
+test('deliberate scrolling releases the viewport guard immediately', async () => {
+  const f = viewportFixture();
+  const done = f.guard.finish();
+  f.events.dispatchEvent(new Event('wheel'));
+  await done;
+  f.sheet.scrollTop = 1400;
+  f.events.dispatchEvent(new Event('scroll'));
+  assert.equal(f.sheet.scrollTop, 1400);
+  assert.equal(f.frames.size, 0);
+  assert.equal(f.timers.size, 0);
 });

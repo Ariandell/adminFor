@@ -27,16 +27,82 @@ interface HistoryBackend {
   redo: () => Promise<void>;
 }
 
+interface HistoryViewport {
+  finish: () => Promise<void>;
+  cancel: () => void;
+}
+
+/** Keep focus restoration from scrolling the sheet or any of its ancestors. */
+export function preserveEditorScroll(holder: HTMLElement): HistoryViewport {
+  const view = holder.ownerDocument.defaultView!;
+  const positions: { element: HTMLElement; top: number; left: number }[] = [];
+  for (let element: HTMLElement | null = holder; element; element = element.parentElement) {
+    positions.push({ element, top: element.scrollTop, left: element.scrollLeft });
+  }
+  let active = true;
+  let frame = 0;
+  let timer = 0;
+  let resolveFinish: (() => void) | undefined;
+  const restore = () => {
+    if (!active) return;
+    for (const { element, top, left } of positions) {
+      if (element.scrollTop !== top || element.scrollLeft !== left) {
+        element.scrollTo({ top, left, behavior: 'instant' });
+      }
+    }
+  };
+  const tick = () => {
+    restore();
+    if (active) frame = view.requestAnimationFrame(tick);
+  };
+  const cancel = () => {
+    if (!active) return;
+    active = false;
+    view.cancelAnimationFrame(frame);
+    view.clearTimeout(timer);
+    view.removeEventListener('scroll', restore, true);
+    for (const type of ['wheel', 'touchmove', 'pointerdown', 'keydown']) {
+      view.removeEventListener(type, onInteraction, true);
+    }
+    resolveFinish?.();
+  };
+  const onInteraction = (event: Event) => {
+    // Queued history shortcuts share the guard; deliberate navigation releases it.
+    if (event instanceof view.KeyboardEvent && editorHistoryShortcut(event)) return;
+    cancel();
+  };
+  view.addEventListener('scroll', restore, true);
+  for (const type of ['wheel', 'touchmove', 'pointerdown', 'keydown']) {
+    view.addEventListener(type, onInteraction, { capture: true, passive: true });
+  }
+  frame = view.requestAnimationFrame(tick);
+  return {
+    cancel,
+    finish() {
+      if (!active) return Promise.resolve();
+      restore();
+      return new Promise<void>(resolve => {
+        resolveFinish = resolve;
+        // editorjs-undo defers caret placement by 50 ms.
+        // Include that focus change, then release the guard completely.
+        timer = view.setTimeout(() => { restore(); cancel(); }, 100);
+      });
+    },
+  };
+}
+
 /** Serialize history actions and flush typing that is still inside the plugin's debounce. */
 export function createEditorHistory(
   saveEditor: () => Promise<OutputData>,
   backend: HistoryBackend,
   onError: (error: unknown) => void,
+  preserveViewport?: () => HistoryViewport,
 ) {
   let disposed = false;
   let busy = false;
   let revision = 0;
   let queue = Promise.resolve();
+  let viewport: HistoryViewport | undefined;
 
   backend.registerChange = () => {
     if (disposed || busy) return;
@@ -58,8 +124,11 @@ export function createEditorHistory(
           const data = await saveEditor();
           if (disposed) return;
           if (backend.editorDidUpdate(data.blocks)) backend.save(data.blocks);
+          viewport = preserveViewport?.();
           await backend[action]();
         } finally {
+          await viewport?.finish();
+          viewport = undefined;
           busy = false;
         }
       }).catch(onError);
@@ -67,6 +136,7 @@ export function createEditorHistory(
     },
     dispose() {
       disposed = true;
+      viewport?.cancel();
       ++revision;
     },
   };
