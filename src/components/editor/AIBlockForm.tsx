@@ -84,9 +84,9 @@ export function AIBlockForm({ data, onChange, onDelete }: AIBlockFormProps) {
   return (
     <div style={styles.wrapper}>
       <div style={styles.header}>
-        <div style={styles.title}><Sparkles size={18} /> AI-блок</div>
+        <div style={styles.title}><Sparkles size={18} /> Відкрите запитання</div>
         {onDelete && (
-          <button type="button" style={styles.deleteButton} title="Видалити AI-блок" onClick={onDelete}>
+          <button type="button" style={styles.deleteButton} title="Видалити запитання" onClick={onDelete}>
             <Trash2 size={16} />
           </button>
         )}
@@ -105,7 +105,7 @@ export function AIBlockForm({ data, onChange, onDelete }: AIBlockFormProps) {
         </label>
 
         <label>
-          <span style={styles.label}>Промпт перевірки</span>
+          <span style={styles.label}>Критерії перевірки</span>
           <textarea
             required
             style={{ ...styles.textarea, minHeight: 128 }}

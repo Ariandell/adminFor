@@ -189,7 +189,7 @@ function OrdinaryLessonEditor() {
       }
       const savedVersion = editVersion.current;
       const latestBlocks = lessonSheetBlocks(currentEditor);
-      if (latestBlocks.length === 0) {
+      if (latestBlocks.length === 0 || latestBlocks.every(block => block.type === 'delimiter')) {
         showToast('Додайте матеріал уроку перед збереженням.', 'error');
         return;
       }
@@ -199,7 +199,7 @@ function OrdinaryLessonEditor() {
       }
       if (latestBlocks.some(block => block.type === 'aiBlock' &&
         (!String(block.data?.question ?? '').trim() || !String(block.data?.evaluationPrompt ?? '').trim()))) {
-        showToast('Заповніть питання й промпт AI-блоку або видаліть незавершений блок.', 'error');
+        showToast('Додайте запитання та критерії перевірки.', 'error');
         return;
       }
       await requireEditableLesson();
@@ -467,8 +467,8 @@ function OrdinaryLessonEditor() {
         </div>
 
         <details className="mb-8 rounded-xl border border-lavender-200 bg-lavender-50 p-5">
-          <summary className="cursor-pointer text-lg font-semibold">Збережений вступ · попередній формат</summary>
-          <p className="mt-2 mb-4 text-sm text-ink-500">Ці поля зберігаються для сумісності зі старими уроками. Поточний екран читання їх не показує; основний матеріал додавайте в аркуш нижче.</p>
+          <summary className="cursor-pointer text-lg font-semibold">Вступ до уроку</summary>
+          <p className="mt-2 mb-4 text-sm text-ink-500">Вступ показується на початку стрічки уроку. Основний матеріал додавайте нижче.</p>
           <label htmlFor="intro-story" className="block text-sm font-medium mb-1">Коротка зав’язка</label>
           <textarea id="intro-story" value={introStory} onChange={e => { setIntroStory(e.target.value); markLessonDirty(); }} rows={3} className="w-full rounded-lg border border-lavender-200 bg-white p-3 mb-4" placeholder="2–3 речення про ситуацію, з якою учень навчиться справлятися." />
           <label htmlFor="intro-outcomes" className="block text-sm font-medium mb-1">Після уроку учень зможе…</label>
@@ -479,8 +479,7 @@ function OrdinaryLessonEditor() {
 
         <div className="mb-6">
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-ink">Матеріал уроку · один аркуш</h2>
-            <p className="text-sm text-ink-600">Додавайте блоки в порядку читання. У застосунку урок прокручується суцільно, без меж сторінок.</p>
+            <h2 className="text-lg font-semibold text-ink">Матеріал уроку</h2>
           </div>
           <EditorBlock ref={editorRef} initialData={{ ...content, blocks: initialBlocks }} onDirty={markLessonDirty} />
         </div>

@@ -18,7 +18,7 @@ export class CustomAITool {
   private reactRoot: ReturnType<typeof ReactDOM.createRoot> | null;
 
   static get toolbox() {
-    return { title: 'AI-блок', icon: '✨' };
+    return { title: 'Відкрите запитання', icon: '✨' };
   }
 
   constructor({ data, api, block }: { data: Partial<AIBlockData>; api: API; block: BlockAPI }) {
@@ -32,7 +32,7 @@ export class CustomAITool {
   }
 
   private handleDelete = () => {
-    if (!confirm('Видалити цей AI-блок з уроку?')) return;
+    if (!confirm('Видалити це запитання з уроку?')) return;
     const index = this.api.blocks.getBlockIndex(this.block.id);
     this.api.blocks.delete(index);
   };

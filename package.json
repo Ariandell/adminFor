@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "test": "node --test --experimental-strip-types tests/cardText.test.ts tests/achievementRules.test.ts tests/lessonPages.test.ts tests/lessonSheet.test.ts tests/editorLink.test.ts tests/youtubeVideo.test.ts",
+    "test": "node --test --experimental-strip-types tests/cardText.test.ts tests/achievementRules.test.ts tests/lessonPages.test.ts tests/lessonSheet.test.ts tests/editorLink.test.ts tests/editorHistory.test.ts tests/youtubeVideo.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {

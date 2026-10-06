@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { OutputData } from '@editorjs/editorjs';
 import { contentWithLessonSheet, lessonSheetBlocks } from '../src/lib/lessonSheet.ts';
+import { normalizeDelimiterData } from '../src/lib/lessonDelimiter.ts';
 
 test('old page markers flatten into one sheet without reordering lesson blocks', () => {
   const content = {
@@ -16,11 +17,32 @@ test('old page markers flatten into one sheet without reordering lesson blocks',
   } as OutputData;
 
   const blocks = lessonSheetBlocks(content);
-  assert.deepEqual(blocks.map(block => block.id), ['intro', 'quiz']);
+  assert.deepEqual(blocks.map(block => block.type), ['paragraph', 'delimiter', 'quiz']);
 
   const saved = contentWithLessonSheet(content, blocks);
-  assert.deepEqual(saved.blocks.map(block => block.id), ['intro', 'quiz']);
+  assert.deepEqual(saved.blocks, blocks);
   assert.deepEqual((saved as OutputData & { introduction: unknown }).introduction, { story: 'Story' });
+});
+
+test('interior legacy boundaries become watercolor dividers; leading and trailing markers disappear', () => {
+  const blocks = lessonSheetBlocks({ blocks: [
+    { id: 'leading', type: 'pageBreak', data: {} },
+    { id: 'a', type: 'paragraph', data: { text: 'One' } },
+    { id: 'pause', type: 'pageBreak', data: {} },
+    { id: 'b', type: 'paragraph', data: { text: 'Two' } },
+    { id: 'trailing', type: 'pageBreak', data: {} },
+  ] });
+  assert.deepEqual(blocks.map(block => block.id), ['a', 'pause', 'b']);
+  assert.equal(blocks[1].type, 'delimiter');
+  assert.deepEqual(contentWithLessonSheet(undefined, blocks).blocks, blocks);
+});
+
+test('plain divider survives saves without labels or appearance options', () => {
+  const divider = { id: 'd', type: 'delimiter', data: { style: 'butterfly', tone: 'mint', label: '  Тепер практика  ' } };
+  const saved = contentWithLessonSheet(undefined, [divider]);
+  assert.deepEqual(saved.blocks[0].data, {});
+  assert.deepEqual(contentWithLessonSheet(saved, saved.blocks).blocks, saved.blocks);
+  assert.deepEqual(normalizeDelimiterData({ style: 'unknown', tone: 'unknown' }), {});
 });
 
 test('new lessons save as one continuous block stream without page markers', () => {

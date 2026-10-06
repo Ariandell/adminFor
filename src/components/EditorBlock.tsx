@@ -7,14 +7,16 @@ import Undo from 'editorjs-undo';
 import {
   Undo2, Redo2, Type, Heading1, Heading2, Heading3, Bold, Italic, Underline,
   Strikethrough, Highlighter, List as ListIcon, ListOrdered, ListChecks, Table2, Link2,
-  ImagePlus, Music2, Video, Quote as QuoteIcon, FileQuestion, ChevronDown, Sparkles,
+  ImagePlus, Music2, Video, Quote as QuoteIcon, FileQuestion, ChevronDown, Sparkles, Minus,
 } from 'lucide-react';
 import { CustomAudioTool } from './editor/CustomAudioTool';
 import { CustomImageTool } from './editor/CustomImageTool';
 import { CustomQuizTool } from './editor/CustomQuizTool';
 import { CustomAITool } from './editor/CustomAITool';
 import { CustomYoutubeTool } from './editor/CustomYoutubeTool';
+import { CustomDelimiterTool } from './editor/CustomDelimiterTool';
 import { normalizeEditorLink } from '../lib/editorLink';
+import { createEditorHistory, editorContentChanged, editorHistoryShortcut, type HistoryAction } from '../lib/editorHistory';
 import { MarkerTool, StrikeTool, UnderlineTool, toggleInlineTag } from './editor/inlineFormats';
 import { inlineMarks, RichHeader, RichParagraph, RichQuote } from './editor/richTextTools';
 import { normalizePastedHtml } from './editor/normalizePastedHtml';
@@ -32,11 +34,11 @@ type MenuName = 'blocks' | 'format' | 'lists' | 'media';
 
 const EditorBlockInner = forwardRef<EditorBlockHandle, EditorProps>(function EditorBlockInner({ initialData, onDirty }, ref) {
   const editorRef = useRef<EditorJS | null>(null);
-  const undoRef = useRef<any>(null);
-  const isInitialized = useRef(false);
+  const undoRef = useRef<ReturnType<typeof createEditorHistory> | null>(null);
   const onDirtyRef = useRef(onDirty);
   onDirtyRef.current = onDirty;
   const holderRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const [undoReady, setUndoReady] = useState(false);
   const [openMenu, setOpenMenu] = useState<MenuName | null>(null);
   const [linkOpen, setLinkOpen] = useState(false);
@@ -59,6 +61,36 @@ const EditorBlockInner = forwardRef<EditorBlockHandle, EditorProps>(function Edi
 
   useEffect(() => {
     const holder = holderRef.current;
+    const wrapper = wrapperRef.current;
+    let disposed = false;
+    let mountedEditor: EditorJS | null = null;
+    const onHistoryShortcut = (event: KeyboardEvent) => {
+      const action = editorHistoryShortcut(event);
+      if (!action || !undoRef.current || !(event.target instanceof Element)) return;
+      // Native fields keep their own text undo, including quiz and media inputs.
+      if (event.target.closest('input, textarea, select')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void undoRef.current.run(action);
+    };
+    // Capture on the whole editor, including its toolbar, before block tools stop bubbling.
+    wrapper?.addEventListener('keydown', onHistoryShortcut, true);
+    const containSheetScroll = (event: WheelEvent) => {
+      if (!holder || event.ctrlKey || event.metaKey || event.deltaY === 0) return;
+      const canScroll = (element: Element) => event.deltaY > 0
+        ? element.scrollTop < element.scrollHeight - element.clientHeight - 1
+        : element.scrollTop > 0;
+      if (canScroll(holder)) return;
+      // Native scrolling handles the sheet and nested fields. At an edge (or in
+      // an empty sheet), keep the wheel from unexpectedly moving the whole page.
+      let target = event.target instanceof Element ? event.target : null;
+      while (target && target !== holder) {
+        if (canScroll(target) && /auto|scroll/.test(getComputedStyle(target).overflowY)) return;
+        target = target.parentElement;
+      }
+      event.preventDefault();
+    };
+    holder?.addEventListener('wheel', containSheetScroll, { passive: false });
     const normalizePaste = (event: ClipboardEvent) => {
       if (!holder || !(event.target instanceof Element) || event.target.closest('input, textarea, select')) return;
       const clipboard = event.clipboardData;
@@ -78,9 +110,12 @@ const EditorBlockInner = forwardRef<EditorBlockHandle, EditorProps>(function Edi
       }));
     };
     holder?.addEventListener('paste', normalizePaste, true);
-    if (!isInitialized.current && holderRef.current) {
+    // StrictMode mounts effects twice. Defer construction so the cancelled first
+    // mount cannot leave behind an editor whose onReady belongs to a dead effect.
+    queueMicrotask(() => {
+      if (disposed || !holder) return;
       const editor = new EditorJS({
-        holder: holderRef.current,
+        holder,
         sanitizer: inlineMarks,
         tools: {
           header: { class: RichHeader, inlineToolbar: true } as unknown as Record<string, unknown>,
@@ -97,14 +132,33 @@ const EditorBlockInner = forwardRef<EditorBlockHandle, EditorProps>(function Edi
           marker: MarkerTool,
           quiz: CustomQuizTool,
           aiBlock: CustomAITool,
+          delimiter: CustomDelimiterTool,
         },
         data: initialData,
-        onReady() {
-          const undo = new Undo({ editor });
-          // editorjs-undo cannot restore an empty block array; let it capture
-          // Editor.js's own first paragraph for a new lesson instead.
-          if (initialData?.blocks?.length) undo.initialize(initialData);
-          undoRef.current = undo;
+        async onReady() {
+          if (disposed) return;
+          // One shortcut handler for both the sheet and toolbar, in every keyboard layout.
+          const undo = new Undo({ editor, config: { shortcuts: { undo: [], redo: [] } } });
+          undo.editorDidUpdate = (blocks: OutputData['blocks']) => editorContentChanged(undo.stack[undo.position].state, blocks);
+          const saveHistory = undo.save.bind(undo);
+          undo.save = (blocks: OutputData['blocks']) => {
+            saveHistory(blocks);
+            // Keyboard focus alone does not always set Editor.js's current block.
+            // The plugin otherwise stores -1 and crashes on the first undo.
+            const item = undo.stack[undo.position];
+            item.index = Math.max(0, Math.min(item.index, blocks.length - 1));
+          };
+          const saveForHistory = async (): Promise<OutputData> => {
+            const data = await editor.save();
+            // Keep the empty paragraph in history so deleting all text is undoable too.
+            if (!data.blocks.length) data.blocks = [{ id: editor.blocks.getBlockByIndex(0)?.id, type: 'paragraph', data: { text: '' } }];
+            return data;
+          };
+          const history = createEditorHistory(saveForHistory, undo, error => console.error('Editor history:', error));
+          const baseline = await saveForHistory();
+          if (disposed) { history.dispose(); return; }
+          undo.initialize(baseline);
+          undoRef.current = history;
           setUndoReady(true);
         },
         onChange() {
@@ -116,17 +170,21 @@ const EditorBlockInner = forwardRef<EditorBlockHandle, EditorProps>(function Edi
       });
 
       editorRef.current = editor;
-      isInitialized.current = true;
-    }
+      mountedEditor = editor;
+    });
 
     return () => {
+      disposed = true;
+      wrapper?.removeEventListener('keydown', onHistoryShortcut, true);
       holder?.removeEventListener('paste', normalizePaste, true);
-      if (editorRef.current?.destroy) {
-        editorRef.current.destroy();
-        editorRef.current = null;
-        undoRef.current = null;
-        isInitialized.current = false;
-      }
+      holder?.removeEventListener('wheel', containSheetScroll);
+      undoRef.current?.dispose();
+      holder?.dispatchEvent(new Event('destroy'));
+      undoRef.current = null;
+      if (editorRef.current === mountedEditor) editorRef.current = null;
+      const editor = mountedEditor;
+      if (editor?.destroy) editor.destroy();
+      else if (editor) void editor.isReady.then(() => editor.destroy()).catch(error => console.error('Editor cleanup:', error));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -205,19 +263,19 @@ const EditorBlockInner = forwardRef<EditorBlockHandle, EditorProps>(function Edi
     return () => window.removeEventListener('keydown', onLinkShortcut, true);
   });
 
-  const historyAction = (action: 'undo' | 'redo') => {
+  const historyAction = (action: HistoryAction) => {
     const active = document.activeElement;
     if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) {
       document.execCommand(action);
       return;
     }
-    undoRef.current?.[action]();
+    void undoRef.current?.run(action);
   };
 
   const toggleMenu = (menu: MenuName) => setOpenMenu(current => current === menu ? null : menu);
 
   return (
-    <div className="overflow-visible rounded-2xl border border-lavender-100 bg-paper-200 shadow-cozy-sm">
+    <div ref={wrapperRef} className="overflow-visible rounded-2xl border border-lavender-100 bg-paper-200 shadow-cozy-sm">
       <div className="sticky top-3 z-20 mx-3 mt-3 flex flex-wrap items-center gap-1 rounded-xl border border-white/10 bg-[#273238]/95 px-2 py-1.5 shadow-xl backdrop-blur">
         <button type="button" disabled={!undoReady} onMouseDown={event => event.preventDefault()} onClick={() => historyAction('undo')} title="Скасувати (Ctrl+Z)" className={toolbarBtn}><Undo2 size={18} /></button>
         <button type="button" disabled={!undoReady} onMouseDown={event => event.preventDefault()} onClick={() => historyAction('redo')} title="Повторити (Ctrl+Y)" className={toolbarBtn}><Redo2 size={18} /></button>
@@ -278,11 +336,12 @@ const EditorBlockInner = forwardRef<EditorBlockHandle, EditorProps>(function Edi
           </div>}
         </div>
         <button type="button" onClick={() => insertBlock('quiz')} className={toolbarBtn} title="Додати вправу"><FileQuestion size={18} /></button>
-        <button type="button" onClick={() => insertBlock('aiBlock')} className={toolbarBtn} title="Додати AI-блок"><Sparkles size={18} /></button>
+        <button type="button" onClick={() => insertBlock('aiBlock')} className={toolbarBtn} title="Додати відкрите запитання"><Sparkles size={18} /></button>
+        <button type="button" onClick={() => insertBlock('delimiter')} className={toolbarBtn} title="Роздільник"><Minus size={18} /></button>
       </div>
 
       <div className="p-4 pt-5 sm:p-8 sm:pt-9">
-        <div ref={holderRef} className="word-sheet mx-auto min-h-[500px] max-w-4xl rounded-xl bg-white px-6 py-8 shadow-cozy-lg ring-1 ring-black/5 sm:px-10 sm:py-12" />
+        <div ref={holderRef} role="region" aria-label="Аркуш уроку" tabIndex={0} className="word-sheet mx-auto max-w-4xl rounded-xl bg-white px-6 py-8 shadow-cozy-lg ring-1 ring-black/5 sm:px-10 sm:py-12" />
       </div>
     </div>
   );

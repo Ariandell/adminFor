@@ -1,11 +1,19 @@
 import type { OutputBlockData, OutputData } from '@editorjs/editorjs';
+import { normalizeDelimiterData } from './lessonDelimiter.ts';
 
-const isPageBoundary = (block: OutputBlockData) =>
-  block.type === 'pageBreak' || block.type === 'delimiter';
-
-/** Existing lessons may contain notebook page markers; the new editor is one sheet. */
+/** Preserve visual pauses; old notebook markers become delimiters on author save. */
 export function lessonSheetBlocks(content: OutputData | undefined): OutputBlockData[] {
-  return (content?.blocks ?? []).filter(block => !isPageBoundary(block));
+  const result: OutputBlockData[] = [];
+  let pending: OutputBlockData | undefined;
+  for (const block of content?.blocks ?? []) {
+    if (block.type === 'pageBreak') { pending = block; continue; }
+    if (pending && result.length && result.at(-1)?.type !== 'delimiter' && block.type !== 'delimiter') {
+      result.push({ ...pending, type: 'delimiter', data: normalizeDelimiterData() });
+    }
+    pending = undefined;
+    result.push(block.type === 'delimiter' ? { ...block, data: normalizeDelimiterData(block.data) } : block);
+  }
+  return result;
 }
 
 export function contentWithLessonSheet(
@@ -16,6 +24,6 @@ export function contentWithLessonSheet(
     ...content,
     time: Date.now(),
     version: content?.version ?? '2.31.6',
-    blocks: blocks.filter(block => !isPageBoundary(block)),
+    blocks: lessonSheetBlocks({ blocks }),
   };
 }
