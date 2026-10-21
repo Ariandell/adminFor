@@ -1,10 +1,11 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { BookOpen, Tags, Sparkles, LayoutDashboard, CreditCard, ClipboardCheck, Trophy, Palette, BadgePercent, Megaphone, WalletCards } from 'lucide-react';
+import { BookOpen, BookText, Tags, Sparkles, LayoutDashboard, CreditCard, ClipboardCheck, Trophy, Palette, BadgePercent, Megaphone, WalletCards } from 'lucide-react';
 
 const navGroups = [
   { label: 'Робота', items: [
     { name: 'Огляд', path: '/', icon: LayoutDashboard },
     { name: 'Курси', path: '/courses', icon: BookOpen },
+    { name: 'Словник курсів', path: '/course-vocabulary', icon: BookText },
     { name: 'Картки', path: '/cards', icon: CreditCard },
     { name: 'Теги', path: '/tags', icon: Tags },
     { name: 'Домашні завдання', path: '/homework', icon: ClipboardCheck },

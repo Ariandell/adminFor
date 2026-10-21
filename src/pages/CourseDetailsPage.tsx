@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { ArrowLeft, Plus, Pencil, Trash2, Video, Music, ImageIcon, GraduationCap } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Video, Music, ImageIcon, GraduationCap, BookText } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import Card from '../components/ui/Card';
 import { buttonClass } from '../components/ui/Button';
@@ -97,11 +97,16 @@ function OrdinaryCourseDetails() {
         </div>
       </Card>
 
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
         <h2 className="text-2xl font-bold">Уроки ({lessons.length})</h2>
+        <div className="flex flex-wrap gap-2">
+        <Link to={`/course-vocabulary?course=${courseId}`} className={buttonClass('secondary', 'sm')}>
+          <BookText size={18} /> Словник курсу
+        </Link>
         <Link to={`/courses/${courseId}/lessons/new`} className={buttonClass('primary', 'sm')}>
           <Plus size={18} /> Додати урок
         </Link>
+        </div>
       </div>
 
       <div className="space-y-4">

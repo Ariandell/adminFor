@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { Pencil, Plus, Search, Trash2, X, Tags as TagsIcon } from 'lucide-react';
+import { ChevronDown, Pencil, Plus, RefreshCw, Search, Trash2, X, Tags as TagsIcon } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -8,6 +9,12 @@ import IconButton from '../components/ui/IconButton';
 import EmptyState from '../components/ui/EmptyState';
 import { pastelFor } from '../components/ui/Badge';
 import PageHeader from '../components/ui/PageHeader';
+import { fetchAllRows } from '../lib/courseVocabulary';
+import { tagWordLabel, wordsFromTagLinks } from '../lib/tagWords';
+import type { TaggedCard, TagWordLink } from '../lib/tagWords';
+
+type Tag = { id: string; name: string };
+type WordList = { status: 'loading' | 'ready' | 'error'; words: TaggedCard[] };
 
 function wordsLabel(n: number) {
   const mod10 = n % 10;
@@ -19,61 +26,100 @@ function wordsLabel(n: number) {
 
 export default function TagsPage() {
   const { showToast } = useToast();
-  const [tags, setTags] = useState<any[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [tagCounts, setTagCounts] = useState<Record<string, number>>({});
+  const [tagsLoading, setTagsLoading] = useState(true);
+  const [tagsError, setTagsError] = useState(false);
+  const [countsKnown, setCountsKnown] = useState(false);
   const [name, setName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [isComposerOpen, setIsComposerOpen] = useState(false);
 
-  const [expandedTagId, setExpandedTagId] = useState<string | null>(null);
-  const [wordsByTag, setWordsByTag] = useState<Record<string, any[]>>({});
-  const [loadingTagId, setLoadingTagId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const expandedTagId = searchParams.get('tag');
+  function setExpandedTagId(tagId: string | null) {
+    const next = new URLSearchParams(searchParams);
+    if (tagId) next.set('tag', tagId);
+    else next.delete('tag');
+    setSearchParams(next, { replace: true });
+  }
+  const [wordsByTag, setWordsByTag] = useState<Record<string, WordList>>({});
+  const wordsPanel = useRef<HTMLElement>(null);
+  const lastScrolledTag = useRef<string | null>(null);
+  const mounted = useRef(true);
+  const tagRequest = useRef(0);
+  const wordRequests = useRef<Record<string, number>>({});
 
   useEffect(() => {
+    mounted.current = true;
     fetchTags();
+    return () => {
+      mounted.current = false;
+    };
   }, []);
 
-  async function fetchTags() {
-    const { data, error } = await supabase.from('tags').select('*').order('created_at', { ascending: false });
-    if (error) {
-      console.error(error);
-      return;
+  useEffect(() => {
+    if (expandedTagId && tags.some(tag => tag.id === expandedTagId) && !wordsByTag[expandedTagId]) {
+      fetchWordsForTag(expandedTagId);
     }
-    setTags(data || []);
+  }, [expandedTagId, tags, wordsByTag]);
 
-    const { data: linkData, error: linkError } = await supabase.from('card_tags').select('tag_id');
-    if (linkError) {
-      console.error(linkError);
-      return;
+  useEffect(() => {
+    if (!expandedTagId) lastScrolledTag.current = null;
+    const list = expandedTagId ? wordsByTag[expandedTagId] : undefined;
+    if (expandedTagId && list && list.status !== 'loading' && wordsPanel.current && lastScrolledTag.current !== expandedTagId) {
+      lastScrolledTag.current = expandedTagId;
+      wordsPanel.current.scrollIntoView({
+        block: 'start',
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+      });
     }
-    const counts: Record<string, number> = {};
-    (linkData || []).forEach((row: any) => {
-      counts[row.tag_id] = (counts[row.tag_id] || 0) + 1;
-    });
-    setTagCounts(counts);
+  }, [expandedTagId, tags, wordsByTag]);
+
+  async function fetchTags() {
+    const request = ++tagRequest.current;
+    setTagsLoading(true);
+    setTagsError(false);
+    try {
+      const [data, links] = await Promise.all([
+        fetchAllRows<Tag>((from, to) => supabase.from('tags').select('id, name')
+          .order('created_at', { ascending: false }).order('id').range(from, to)),
+        fetchAllRows<{ tag_id: string; card_id: string }>((from, to) => supabase.from('card_tags')
+          .select('tag_id, card_id').order('tag_id').order('card_id').range(from, to)),
+      ]);
+      if (!mounted.current || request !== tagRequest.current) return;
+      setTags(data);
+      const counts: Record<string, number> = {};
+      for (const row of links) counts[row.tag_id] = (counts[row.tag_id] || 0) + 1;
+      setTagCounts(counts);
+      setCountsKnown(true);
+    } catch {
+      if (mounted.current && request === tagRequest.current) setTagsError(true);
+    } finally {
+      if (mounted.current && request === tagRequest.current) setTagsLoading(false);
+    }
   }
 
   async function fetchWordsForTag(tagId: string) {
-    setLoadingTagId(tagId);
+    const request = (wordRequests.current[tagId] || 0) + 1;
+    wordRequests.current[tagId] = request;
+    setWordsByTag(prev => ({ ...prev, [tagId]: { status: 'loading', words: prev[tagId]?.words || [] } }));
     try {
-      const { data, error } = await supabase
-        .from('card_tags')
-        .select('cards(id, original_word, translation, image_color_url, lessons(title, courses(title)))')
-        .eq('tag_id', tagId);
-      if (error) throw error;
-
-      const words = (data || [])
-        .map((row: any) => row.cards)
-        .filter(Boolean)
-        .sort((a: any, b: any) => a.original_word.localeCompare(b.original_word));
-
-      setWordsByTag(prev => ({ ...prev, [tagId]: words }));
-    } catch (error: any) {
-      showToast('Помилка завантаження слів: ' + error.message, 'error');
-    } finally {
-      setLoadingTagId(null);
+      const links = await fetchAllRows<TagWordLink>(async (from, to) => {
+        const result = await supabase.from('card_tags')
+          .select('cards(id, original_word, translation, card_type, infinitive, past_simple, past_participle, image_color_url, lessons(title, courses(title)))')
+          .eq('tag_id', tagId).order('card_id').range(from, to);
+        return { data: result.data as unknown as TagWordLink[] | null, error: result.error };
+      });
+      if (!mounted.current || wordRequests.current[tagId] !== request) return;
+      const words = wordsFromTagLinks(links);
+      setWordsByTag(prev => ({ ...prev, [tagId]: { status: 'ready', words } }));
+      setTagCounts(prev => ({ ...prev, [tagId]: words.length }));
+    } catch {
+      if (!mounted.current || wordRequests.current[tagId] !== request) return;
+      setWordsByTag(prev => ({ ...prev, [tagId]: { status: 'error', words: prev[tagId]?.words || [] } }));
     }
   }
 
@@ -83,7 +129,7 @@ export default function TagsPage() {
       return;
     }
     setExpandedTagId(tagId);
-    if (!wordsByTag[tagId]) {
+    if (!wordsByTag[tagId] || wordsByTag[tagId].status === 'error') {
       fetchWordsForTag(tagId);
     }
   }
@@ -112,7 +158,7 @@ export default function TagsPage() {
     }
   }
 
-  function editTag(tag: any) {
+  function editTag(tag: Tag) {
     setEditingId(tag.id);
     setName(tag.name);
     setIsComposerOpen(true);
@@ -123,6 +169,8 @@ export default function TagsPage() {
     try {
       const { error } = await supabase.from('tags').delete().eq('id', id);
       if (error) throw error;
+
+      wordRequests.current[id] = (wordRequests.current[id] || 0) + 1;
 
       setWordsByTag(prev => {
         const next = { ...prev };
@@ -142,13 +190,14 @@ export default function TagsPage() {
     .sort((a, b) => a.name.localeCompare(b.name, 'uk'));
   const selectedTag = tags.find(tag => tag.id === expandedTagId);
   const selectedHue = selectedTag ? pastelFor(selectedTag.name) : null;
-  const selectedWords = expandedTagId ? wordsByTag[expandedTagId] : undefined;
+  const selectedList = expandedTagId ? wordsByTag[expandedTagId] : undefined;
+  const selectedWords = selectedList?.words || [];
 
   return (
     <div>
       <PageHeader
         title="Теги"
-        description="Групуйте слова й швидко знаходьте пов’язані картки"
+        description="Натисніть тег, щоб переглянути всі його слова"
         actions={<Button size="sm" onClick={() => { setEditingId(null); setName(''); setIsComposerOpen(true); }}><Plus size={16} /> Додати тег</Button>}
       />
 
@@ -170,6 +219,13 @@ export default function TagsPage() {
           </div>
         </div>
 
+        {tagsLoading && <p role="status" className="mb-4 text-sm text-ink-400">Завантаження тегів…</p>}
+        {tagsError && (
+          <div role="alert" className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-blush-200 bg-blush-50 p-4 text-sm text-ink-600">
+            <span>Не вдалося завантажити теги. Спробуйте ще раз.</span>
+            <Button type="button" variant="secondary" size="sm" onClick={fetchTags}><RefreshCw size={15} /> Повторити</Button>
+          </div>
+        )}
         <div className="flex flex-wrap gap-2.5">
           {filteredTags.map(tag => {
             const isOpen = expandedTagId === tag.id;
@@ -178,10 +234,11 @@ export default function TagsPage() {
 
             return (
               <div key={tag.id} className={`group inline-flex items-center rounded-full border bg-white/75 py-1 pl-1.5 pr-1 shadow-sm transition ${isOpen ? `${hue.border} ring-2 ring-lavender-100` : 'border-lavender-100 hover:border-lavender-200 hover:shadow-cozy-sm'}`}>
-                <button type="button" onClick={() => toggleTag(tag.id)} className="flex items-center gap-2 rounded-full px-2 py-1 text-left">
+                <button type="button" onClick={() => toggleTag(tag.id)} aria-expanded={isOpen} aria-controls={isOpen ? `tag-words-${tag.id}` : undefined} className="flex items-center gap-2 rounded-full px-2 py-1 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lavender-500">
                   <span className={`h-2 w-2 rounded-full ${hue.dot}`} />
                   <span className="text-sm font-semibold text-ink">{tag.name}</span>
-                  <span className="text-xs tabular-nums text-ink-400">{count}</span>
+                  <span className="text-xs tabular-nums text-ink-400">{countsKnown || wordsByTag[tag.id]?.status === 'ready' ? count : '—'}</span>
+                  <ChevronDown size={14} aria-hidden="true" className={`text-ink-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
                 <div className="ml-0.5 flex items-center opacity-60 transition group-hover:opacity-100">
                   <IconButton onClick={() => editTag(tag)} title="Редагувати тег" className="p-1.5"><Pencil size={14} /></IconButton>
@@ -190,41 +247,47 @@ export default function TagsPage() {
               </div>
             );
           })}
-          {tags.length === 0 && (
+          {!tagsLoading && !tagsError && tags.length === 0 && (
             <EmptyState icon={<TagsIcon size={28} />} title="Тегів ще немає" className="w-full" />
           )}
-          {tags.length > 0 && filteredTags.length === 0 && (
+          {!tagsLoading && tags.length > 0 && filteredTags.length === 0 && (
             <EmptyState icon={<Search size={28} />} title="Тегів за цим запитом не знайдено" className="w-full py-10" />
           )}
         </div>
 
         {selectedTag && selectedHue && (
-          <section className="mt-9 border-t border-lavender-100 pt-6">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
+          <section ref={wordsPanel} id={`tag-words-${selectedTag.id}`} aria-label={`Слова тега «${selectedTag.name}»`} className="mt-9 scroll-mt-32 border-t border-lavender-100 pt-6 lg:scroll-mt-6">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
                 <span className={`h-2.5 w-2.5 rounded-full ${selectedHue.dot}`} />
                 <h2 className="text-lg font-bold text-ink">{selectedTag.name}</h2>
-                <span className="text-sm text-ink-400">{tagCounts[selectedTag.id] ?? 0} {wordsLabel(tagCounts[selectedTag.id] ?? 0)}</span>
+                {(countsKnown || selectedList?.status === 'ready') && <span className="text-sm text-ink-400">{tagCounts[selectedTag.id] ?? 0} {wordsLabel(tagCounts[selectedTag.id] ?? 0)}</span>}
               </div>
               <div className="flex items-center gap-1">
+                <IconButton disabled={selectedList?.status === 'loading'} onClick={() => fetchWordsForTag(selectedTag.id)} title="Оновити слова"><RefreshCw size={16} /></IconButton>
                 <Button type="button" variant="secondary" size="sm" onClick={() => editTag(selectedTag)}><Pencil size={15} /> Редагувати тег</Button>
                 <IconButton onClick={() => setExpandedTagId(null)} title="Закрити"><X size={18} /></IconButton>
               </div>
             </div>
             <Card className={`border-0 ${selectedHue.bg}`}>
-              {loadingTagId === selectedTag.id && <p className="text-sm text-ink-400">Завантаження слів...</p>}
-              {loadingTagId !== selectedTag.id && selectedWords && selectedWords.length === 0 && <p className="text-sm text-ink-400">До цього тега ще не прив'язано жодного слова</p>}
-              {loadingTagId !== selectedTag.id && selectedWords && selectedWords.length > 0 && (
-                <ul className="grid gap-2 md:grid-cols-2">
+              {selectedList?.status === 'loading' && <p role="status" className="text-sm text-ink-600">Завантаження слів…</p>}
+              {selectedList?.status === 'error' && (
+                <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-ink-600">
+                  <span>Не вдалося завантажити слова цього тега.</span>
+                  <Button type="button" variant="secondary" size="sm" onClick={() => fetchWordsForTag(selectedTag.id)}><RefreshCw size={15} /> Повторити</Button>
+                </div>
+              )}
+              {selectedList?.status === 'ready' && selectedWords.length === 0 && <p className="text-sm text-ink-600">До цього тега ще не додано слів.</p>}
+              {selectedList?.status === 'ready' && selectedWords.length > 0 && (
+                <ul className="grid max-h-[32rem] gap-2 overflow-y-auto pr-1 md:grid-cols-2">
                   {selectedWords.map(card => (
-                    <li key={card.id} className="flex items-center justify-between gap-4 rounded-xl border border-white/70 bg-white/85 px-3 py-2.5">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-paper-100">
-                          {card.image_color_url && <img src={card.image_color_url} alt="" className="h-full w-full object-cover" />}
-                        </div>
-                        <div className="min-w-0"><span className="font-semibold">{card.original_word}</span><span className="text-ink-600"> — {card.translation}</span></div>
+                    <li key={card.id} className="flex items-start gap-3 rounded-xl border border-white/70 bg-white/85 px-3 py-3">
+                      {card.image_color_url && <img src={card.image_color_url} loading="lazy" alt="" className="h-10 w-10 shrink-0 rounded-lg bg-paper-100 object-cover" />}
+                      <div className="min-w-0 break-words">
+                        <div className="font-semibold text-ink">{tagWordLabel(card)}</div>
+                        <div className="mt-0.5 text-sm text-ink-600">{card.translation?.trim() || 'Переклад не додано'}</div>
+                        <div className="mt-2 text-xs text-ink-400">{[card.lessons?.courses?.title, card.lessons?.title].filter(Boolean).join(' / ') || 'Без прив’язки до уроку'}</div>
                       </div>
-                      <span className="shrink-0 text-right text-xs text-ink-400">{card.lessons?.courses?.title}{card.lessons?.title ? ` / ${card.lessons.title}` : ''}</span>
                     </li>
                   ))}
                 </ul>

@@ -9,6 +9,7 @@ const CourseDetailsPage = lazy(() => import('./pages/CourseDetailsPage'));
 const LessonEditorPage = lazy(() => import('./pages/LessonEditorPage'));
 const TagsPage = lazy(() => import('./pages/TagsPage'));
 const CardsPage = lazy(() => import('./pages/CardsPage'));
+const CourseVocabularyPage = lazy(() => import('./pages/CourseVocabularyPage'));
 const HomeworkPage = lazy(() => import('./pages/HomeworkPage'));
 const AchievementsPage = lazy(() => import('./pages/ResourcePages').then(m => ({ default: m.AchievementsPage })));
 const CosmeticsPage = lazy(() => import('./pages/ResourcePages').then(m => ({ default: m.CosmeticsPage })));
@@ -29,6 +30,7 @@ const router = createBrowserRouter([{
     { path: 'courses/:courseId/lessons/:lessonId', element: <LessonEditorPage /> },
     { path: 'tags', element: <TagsPage /> },
     { path: 'cards', element: <CardsPage /> },
+    { path: 'course-vocabulary', element: <CourseVocabularyPage /> },
     { path: 'homework', element: <HomeworkPage /> },
     { path: 'achievements', element: <AchievementsPage /> },
     { path: 'cosmetics', element: <CosmeticsPage /> },

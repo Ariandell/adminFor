@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { OutputBlockData } from '@editorjs/editorjs';
 import type { LessonDraftPage } from '../../lib/lessonPages';
+import { normalizeSpeakingTask } from '../../lib/speakingTask';
+import { isPronunciationAudioUrlValid, normalizePronunciationTask } from '../../lib/pronunciationTask';
 import './lessonPagePreview.css';
 
 type Props = {
@@ -67,6 +69,28 @@ function blockPreview(block: OutputBlockData, index: number) {
       return <div key={key} className="lesson-preview-video">Відео</div>;
     case 'aiBlock':
       return <div key={key} className="lesson-preview-exercise"><b>Відкрита відповідь</b><p>{text(data.question) || 'Запитання'}</p><div className="lesson-preview-input" /></div>;
+    case 'speaking': {
+      const task = normalizeSpeakingTask(data);
+      return <div key={key} className="lesson-preview-exercise">
+        <b>🎙 {task.title || 'Усне завдання'}</b>
+        <p style={{ whiteSpace: 'pre-wrap' }}>{task.prompt || 'Інструкція для учня'}</p>
+        <p>Запис відповіді · до {task.maxDurationSeconds} с</p>
+        {task.targetWords.length > 0 && <p>Слова для вживання: {task.targetWords.join(', ')}</p>}
+        {task.criteria && <details><summary>Критерії перевірки · для автора</summary><p style={{ whiteSpace: 'pre-wrap' }}>{task.criteria}</p></details>}
+      </div>;
+    }
+    case 'pronunciation': {
+      const task = normalizePronunciationTask(data);
+      return <div key={key} className="lesson-preview-exercise">
+        <b>{task.title}</b>
+        <p>{task.mode === 'scripted' ? 'Прочитати текст' : 'Відповісти своїми словами'} · {task.locale === 'en-GB' ? 'Британська' : 'Американська'}</p>
+        {task.prompt && <p style={{ whiteSpace: 'pre-wrap' }}>{task.prompt}</p>}
+        {task.mode === 'scripted' && <p lang="en" style={{ whiteSpace: 'pre-wrap' }}>{task.referenceText || 'Текст для читання'}</p>}
+        {task.referenceAudioUrl && isPronunciationAudioUrlValid(task.referenceAudioUrl) && <audio src={task.referenceAudioUrl} controls preload="none" aria-label="Аудіозразок вимови" style={{ width: '100%' }} />}
+        <p>Запис відповіді · до {task.maxDurationSeconds} с</p>
+        <small>Вимова та плавність мовлення</small>
+      </div>;
+    }
     case 'quiz': {
       const questions = Array.isArray(data.questions) ? data.questions : [];
       return <div key={key} className="lesson-preview-exercise">

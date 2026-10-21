@@ -16,6 +16,8 @@ import FileDropzone from '../components/ui/FileDropzone';
 import Badge from '../components/ui/Badge';
 import { contentWithLessonSheet, lessonSheetBlocks } from '../lib/lessonSheet';
 import { youtubeVideoId } from '../lib/youtubeVideo';
+import { speakingTaskValidationError } from '../lib/speakingTask';
+import { pronunciationTaskForSave, pronunciationTaskValidationError } from '../lib/pronunciationTask';
 
 type CardType = 'standard' | 'irregular_verb';
 
@@ -36,9 +38,6 @@ function OrdinaryLessonEditor() {
   const [content, setContent] = useState<OutputData | undefined>();
   const [initialBlocks, setInitialBlocks] = useState<OutputBlockData[]>([]);
   const editorRef = useRef<EditorBlockHandle>(null);
-  const [introStory, setIntroStory] = useState('');
-  const [introOutcomes, setIntroOutcomes] = useState('');
-  const [introNote, setIntroNote] = useState('');
 
   // Cards state
   const [cards, setCards] = useState<any[]>([]);
@@ -141,10 +140,6 @@ function OrdinaryLessonEditor() {
       setTitle(lesson.title);
       setContent(lesson.content);
       setInitialBlocks(lessonSheetBlocks(lesson.content));
-      const intro = lesson.content?.introduction;
-      setIntroStory(typeof intro?.story === 'string' ? intro.story : (lesson.description || ''));
-      setIntroOutcomes(Array.isArray(intro?.outcomes) ? intro.outcomes.filter((item: unknown) => typeof item === 'string').join('\n') : '');
-      setIntroNote(typeof intro?.note === 'string' ? intro.note : '');
     }
 
     await fetchCards();
@@ -202,18 +197,26 @@ function OrdinaryLessonEditor() {
         showToast('Додайте запитання та критерії перевірки.', 'error');
         return;
       }
+      const speakingError = latestBlocks.filter(block => block.type === 'speaking')
+        .map(block => speakingTaskValidationError(block.data)).find(Boolean);
+      if (speakingError) {
+        showToast(speakingError, 'error');
+        return;
+      }
+      const pronunciationError = latestBlocks.filter(block => block.type === 'pronunciation')
+        .map(block => pronunciationTaskValidationError(block.data)).find(Boolean);
+      if (pronunciationError) {
+        showToast(pronunciationError, 'error');
+        return;
+      }
+      const blocksForSave = latestBlocks.map(block => block.type === 'pronunciation'
+        ? { ...block, data: pronunciationTaskForSave(block.data) }
+        : block);
       await requireEditableLesson();
       const lessonData = {
         course_id: courseId,
         title: title.trim(),
-        content: {
-          ...contentWithLessonSheet(content, latestBlocks),
-          introduction: {
-            story: introStory.trim(),
-            outcomes: introOutcomes.split('\n').map(line => line.trim()).filter(Boolean),
-            note: introNote.trim(),
-          },
-        },
+        content: contentWithLessonSheet(content, blocksForSave),
       };
       if (lessonId) {
         const { error } = await supabase.from('lessons').update(lessonData).eq('id', lessonId).eq('course_id', courseId).select('id').single();
@@ -465,17 +468,6 @@ function OrdinaryLessonEditor() {
           <label className="block text-sm font-medium text-ink-600 mb-1">Назва уроку</label>
           <input required value={title} onChange={e => { setTitle(e.target.value); markLessonDirty(); }} type="text" className="w-full border border-lavender-200 rounded-lg p-2 text-lg focus:outline-none focus:ring-2 focus:ring-lavender-300" placeholder="Назва уроку..." />
         </div>
-
-        <details className="mb-8 rounded-xl border border-lavender-200 bg-lavender-50 p-5">
-          <summary className="cursor-pointer text-lg font-semibold">Вступ до уроку</summary>
-          <p className="mt-2 mb-4 text-sm text-ink-500">Вступ показується на початку стрічки уроку. Основний матеріал додавайте нижче.</p>
-          <label htmlFor="intro-story" className="block text-sm font-medium mb-1">Коротка зав’язка</label>
-          <textarea id="intro-story" value={introStory} onChange={e => { setIntroStory(e.target.value); markLessonDirty(); }} rows={3} className="w-full rounded-lg border border-lavender-200 bg-white p-3 mb-4" placeholder="2–3 речення про ситуацію, з якою учень навчиться справлятися." />
-          <label htmlFor="intro-outcomes" className="block text-sm font-medium mb-1">Після уроку учень зможе…</label>
-          <textarea id="intro-outcomes" value={introOutcomes} onChange={e => { setIntroOutcomes(e.target.value); markLessonDirty(); }} rows={3} className="w-full rounded-lg border border-lavender-200 bg-white p-3 mb-4" placeholder="Кожен результат з нового рядка. Рекомендовано 2–3 конкретні вміння." />
-          <label htmlFor="intro-note" className="block text-sm font-medium mb-1">Примітка на полях · необов’язково</label>
-          <textarea id="intro-note" value={introNote} onChange={e => { setIntroNote(e.target.value); markLessonDirty(); }} rows={2} className="w-full rounded-lg border border-lavender-200 bg-white p-3" placeholder="Підказка або потрібне попереднє знання." />
-        </details>
 
         <div className="mb-6">
           <div className="mb-4">
