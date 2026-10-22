@@ -7,14 +7,14 @@ import Undo from 'editorjs-undo';
 import {
   Undo2, Redo2, Type, Heading1, Heading2, Heading3, Bold, Italic, Underline,
   Strikethrough, Highlighter, List as ListIcon, ListOrdered, ListChecks, Table2, Link2,
-  ImagePlus, Music2, Video, Quote as QuoteIcon, FileQuestion, ChevronDown, Sparkles, Minus, Mic, AudioLines,
+  ImagePlus, Music2, Video, Quote as QuoteIcon, FileQuestion, ChevronDown, Sparkles, Minus, Mic,
 } from 'lucide-react';
 import { CustomAudioTool } from './editor/CustomAudioTool';
 import { CustomImageTool } from './editor/CustomImageTool';
 import { CustomQuizTool } from './editor/CustomQuizTool';
 import { CustomAITool } from './editor/CustomAITool';
-import { SpeakingTool } from './editor/SpeakingTool';
-import { PronunciationTool } from './editor/PronunciationTool';
+import { VoiceTaskTool } from './editor/VoiceTaskTool';
+import { voiceBlocksForSave, voiceEditorBlocks } from '../lib/voiceTask';
 import { CustomYoutubeTool } from './editor/CustomYoutubeTool';
 import { CustomDelimiterTool } from './editor/CustomDelimiterTool';
 import { normalizeEditorLink } from '../lib/editorLink';
@@ -57,7 +57,8 @@ const EditorBlockInner = forwardRef<EditorBlockHandle, EditorProps>(function Edi
       if (mediaStatus === 'pending') throw new Error('Дочекайтеся завершення завантаження медіафайлу.');
       if (mediaStatus === 'error') throw new Error('Медіафайл не завантажився. Спробуйте ще раз.');
       if (mediaStatus === 'empty') throw new Error('Додайте файл у порожній медіаблок або видаліть його.');
-      return editor.saver.save();
+      const output = await editor.saver.save();
+      return { ...output, blocks: voiceBlocksForSave(output.blocks) };
     },
   }), []);
 
@@ -134,11 +135,10 @@ const EditorBlockInner = forwardRef<EditorBlockHandle, EditorProps>(function Edi
           marker: MarkerTool,
           quiz: CustomQuizTool,
           aiBlock: CustomAITool,
-          speaking: SpeakingTool,
-          pronunciation: PronunciationTool,
+          voice: VoiceTaskTool,
           delimiter: CustomDelimiterTool,
         },
-        data: initialData,
+        data: initialData ? { ...initialData, blocks: voiceEditorBlocks(initialData.blocks) } : undefined,
         async onReady() {
           if (disposed) return;
           // One shortcut handler for both the sheet and toolbar, in every keyboard layout.
@@ -298,7 +298,7 @@ const EditorBlockInner = forwardRef<EditorBlockHandle, EditorProps>(function Edi
             <div className="my-1 border-t border-white/10" />
             <button type="button" className={menuItem} onClick={() => insertBlock('quote', { text: '', caption: '', alignment: 'left' })}><QuoteIcon size={17} /> Цитата</button>
             <div className="my-1 border-t border-white/10" />
-            <button type="button" className={menuItem} onClick={() => insertBlock('pronunciation')}><AudioLines size={17} /> Вимова</button>
+            <button type="button" className={menuItem} onClick={() => insertBlock('voice')}><Mic size={17} /> Усне завдання</button>
           </div>}
         </div>
 
@@ -346,8 +346,7 @@ const EditorBlockInner = forwardRef<EditorBlockHandle, EditorProps>(function Edi
         </div>
         <button type="button" onClick={() => insertBlock('quiz')} className={toolbarBtn} title="Додати вправу"><FileQuestion size={18} /></button>
         <button type="button" onClick={() => insertBlock('aiBlock')} className={toolbarBtn} title="Додати відкрите запитання"><Sparkles size={18} /></button>
-        <button type="button" onClick={() => insertBlock('speaking')} className={toolbarBtn} title="Додати усне завдання" aria-label="Додати усне завдання"><Mic size={18} /></button>
-        <button type="button" onClick={() => insertBlock('pronunciation')} className={`${toolbarBtn} gap-2`} title="Додати завдання з вимови" aria-label="Додати завдання з вимови"><AudioLines size={18} /><span className="text-xs font-semibold">Вимова</span></button>
+        <button type="button" onClick={() => insertBlock('voice')} className={`${toolbarBtn} gap-2`} title="Додати усне завдання" aria-label="Додати усне завдання"><Mic size={18} /><span className="text-xs font-semibold">Усне завдання</span></button>
         <button type="button" onClick={() => insertBlock('delimiter')} className={toolbarBtn} title="Роздільник"><Minus size={18} /></button>
       </div>
 

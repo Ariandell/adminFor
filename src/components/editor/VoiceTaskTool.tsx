@@ -1,12 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import type { API, BlockAPI } from '@editorjs/editorjs';
-import { normalizeSpeakingTask, type SpeakingTaskData } from '../../lib/speakingTask';
+import { normalizeVoiceTask, type VoiceTaskData } from '../../lib/voiceTask';
 import { protectNativeFields } from './nativeFieldEvents';
-import { SpeakingTaskForm } from './SpeakingTaskForm';
+import { VoiceTaskForm } from './VoiceTaskForm';
 
-export class SpeakingTool {
-  private data: SpeakingTaskData;
+export class VoiceTaskTool {
+  private data: VoiceTaskData;
   private api: API;
   private block: BlockAPI;
   private wrapper: HTMLElement;
@@ -21,15 +21,15 @@ export class SpeakingTool {
   }
 
   static get sanitize() {
-    // The normalizer removes tags; preserving plain strings here avoids HTML-encoding '<' and '&'.
-    return { title: true, prompt: true, criteria: true, targetWords: true };
+    return { title: true, prompt: true, criteria: true, targetWords: true, referenceText: true, referenceAudioUrl: true };
   }
 
   constructor({ data, api, block }: { data: unknown; api: API; block: BlockAPI }) {
-    this.data = normalizeSpeakingTask(data);
+    this.data = normalizeVoiceTask(data);
     this.api = api;
     this.block = block;
     this.wrapper = document.createElement('div');
+    this.wrapper.dataset.editorMediaStatus = 'ready';
     protectNativeFields(this.wrapper);
     for (const eventName of ['click', 'keydown', 'keyup', 'keypress']) {
       this.wrapper.addEventListener(eventName, event => {
@@ -41,33 +41,34 @@ export class SpeakingTool {
 
   private handleDelete = () => {
     if (!confirm('Видалити це усне завдання з уроку?')) return;
-    const index = this.api.blocks.getBlockIndex(this.block.id);
-    this.api.blocks.delete(index);
+    this.api.blocks.delete(this.api.blocks.getBlockIndex(this.block.id));
   };
 
   render(): HTMLElement {
     if (!this.reactRoot) this.reactRoot = ReactDOM.createRoot(this.wrapper);
-    this.reactRoot.render(React.createElement(SpeakingTaskForm, {
+    this.reactRoot.render(React.createElement(VoiceTaskForm, {
       data: this.data,
-      onChange: (data: SpeakingTaskData) => {
-        this.data = normalizeSpeakingTask(data);
-        // editorjs-undo observes this mutation for native input changes too.
+      onChange: (data: VoiceTaskData) => {
+        this.data = normalizeVoiceTask(data);
         this.wrapper.dataset.editorRevision = String(++this.revision);
         this.block.dispatchChange();
+      },
+      onUploadingChange: (uploading: boolean) => {
+        this.wrapper.dataset.editorMediaStatus = uploading ? 'pending' : 'ready';
       },
       onDelete: this.handleDelete,
     }));
     return this.wrapper;
   }
 
-  save(): SpeakingTaskData {
-    return normalizeSpeakingTask(this.data);
+  save(): VoiceTaskData {
+    // History keeps inactive fields; public editor saves restore the app contract.
+    return normalizeVoiceTask(this.data);
   }
 
   destroy() {
     const root = this.reactRoot;
     this.reactRoot = null;
-    // Editor.js can destroy a block during another React root's render.
     queueMicrotask(() => root?.unmount());
   }
 }
