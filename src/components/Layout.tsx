@@ -15,7 +15,7 @@ const navGroups = [
     { name: 'Аватари й рамки', path: '/cosmetics', icon: Palette },
   ]},
   { label: 'Монетизація', items: [
-    { name: 'Тарифи', path: '/subscriptions', icon: WalletCards },
+    { name: 'Підписки', path: '/subscriptions', icon: WalletCards },
     { name: 'Промокоди', path: '/promo-codes', icon: BadgePercent },
     { name: 'Джерела трафіку', path: '/sources', icon: Megaphone },
   ]},
@@ -33,6 +33,6 @@ export default function Layout() {
       <nav className="flex-1 p-4 space-y-6">{navGroups.map(group => <div key={group.label}><p className="px-3 mb-2 text-[11px] font-extrabold uppercase tracking-widest text-ink-400">{group.label}</p><div className="space-y-1">{group.items.map(item => { const active = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path)); const Icon = item.icon; return <Link key={item.path} to={item.path} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition ${active ? 'bg-lavender-500 text-white shadow-cozy' : 'text-ink-600 hover:bg-paper-100'}`}><Icon size={18} />{item.name}</Link>; })}</div></div>)}</nav>
       <div className="p-5 text-xs text-ink-400 border-t border-lavender-100">EnglishAdmin · контент і продукт</div>
     </aside>
-    <main className="flex-1 min-w-0 overflow-auto p-6 xl:p-9"><div className="max-w-7xl mx-auto"><Outlet /></div></main>
+    <main className={`flex-1 min-w-0 ${location.pathname === '/subscriptions' ? 'overflow-visible' : 'overflow-auto'} p-6 xl:p-9`}><div className="max-w-7xl mx-auto"><Outlet /></div></main>
   </div>;
 }
