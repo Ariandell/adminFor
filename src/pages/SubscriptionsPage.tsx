@@ -19,7 +19,6 @@ const groups = [
   { key: 'learning', title: 'Навчання', description: 'Переклад та голосові завдання в уроках' },
   { key: 'words', title: 'Слова й повторення', description: 'Авторський словник, власні картки та практика' },
   { key: 'ai', title: 'ШІ', description: 'Доступ і кількість звернень до помічника' },
-  { key: 'extras', title: 'Додаткові можливості', description: 'Статистика та оформлення профілю' },
 ];
 
 function newDraft() {

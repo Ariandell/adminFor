@@ -30,8 +30,8 @@ test('new plans start inactive with no granted feature or course and no invented
 });
 
 test('catalog separates ready and planned features and does not gate account/security/accessibility', () => {
-  assert.equal(new Set(FEATURE_CATALOG.map(feature => feature.key)).size, 12);
-  assert.deepEqual(FEATURE_CATALOG.filter(feature => feature.status === 'planned').map(feature => feature.key), ['ai_assistant', 'ai_text_review', 'advanced_statistics', 'premium_cosmetics']);
+  assert.equal(new Set(FEATURE_CATALOG.map(feature => feature.key)).size, 9);
+  assert.deepEqual(FEATURE_CATALOG.filter(feature => feature.status === 'planned').map(feature => feature.key), ['ai_assistant']);
   assert.equal(FEATURE_CATALOG.find(feature => feature.key === 'personal_cards')?.period, 'total');
   assert.equal(FEATURE_CATALOG.find(feature => feature.key === 'translation')?.period, 'day');
   assert.ok(!FEATURE_CATALOG.some(feature => /account|security|accessibility|notification/.test(feature.key)));
@@ -145,7 +145,7 @@ test('legacy plans require explicit configuration even when no feature is intend
 
 test('saved policies round-trip without losing individual quotas and course scopes', () => {
   const draft = valid();
-  enabled(draft, 'translation', '50'); enabled(draft, 'personal_cards', '100'); enabled(draft, 'ai_text_review');
+  enabled(draft, 'translation', '50'); enabled(draft, 'personal_cards', '100'); enabled(draft, 'ai_assistant');
   draft.courses = { mode: 'selected', ids: [COURSE] };
   const payload = buildPlanPayload(draft);
   const loaded = planToDraft(payload);
@@ -175,6 +175,24 @@ test('each plan preserves its own course bundle when courses overlap and a bundl
   editedFirst.courses = { mode: 'all', ids: [] };
   assert.deepEqual(buildPlanPayload(editedFirst).entitlements.courses, { mode: 'all', ids: [] });
   assert.deepEqual(storedSecond.entitlements.courses.ids, [secondCourse, thirdCourse]);
+});
+
+test('old plans with retired features remain editable without offering or resaving those features', () => {
+  const draft = valid();
+  enabled(draft, 'translation', '50');
+  const payload = buildPlanPayload(draft);
+  const oldFeatures = {
+    ...payload.entitlements.features,
+    ai_text_review: { enabled: true, limit: 10, period: 'day' },
+    advanced_statistics: { enabled: true, limit: null, period: null },
+    premium_cosmetics: { enabled: true, limit: null, period: null },
+  };
+  const loaded = planToDraft({ ...payload, entitlements: { ...payload.entitlements, features: oldFeatures } });
+  assert.equal(loaded.configIssue, null);
+  assert.deepEqual(validatePlanDraft(loaded), {});
+  assert.deepEqual(summarizePlan(loaded), ['Переклад за натисканням · 50 перекладів на день']);
+  assert.deepEqual(buildPlanPayload(loaded).entitlements.features, payload.entitlements.features);
+  assert.equal(oldFeatures.ai_text_review.enabled, true);
 });
 
 test('unknown versions, feature keys and malformed saved rules block save instead of discarding data', () => {

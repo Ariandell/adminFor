@@ -29,8 +29,9 @@
 }
 ```
 
-- Денний ліміт доступний для `translation`, `speaking_review`, `pronunciation_review`, `flashcards`, `ai_assistant`, `ai_text_review`. `personal_cards` обмежує загальну кількість власних карток.
-- `course_dictionary`, `irregular_verbs`, `word_statistics`, `advanced_statistics`, `premium_cosmetics` — лише доступ без числової квоти. Наявність параметра в тарифі не означає, що заплановану функцію вже реалізовано в додатку.
+- Денний ліміт доступний для `translation`, `speaking_review`, `pronunciation_review`, `flashcards`, `ai_assistant`. `personal_cards` обмежує загальну кількість власних карток.
+- `course_dictionary`, `irregular_verbs`, `word_statistics` — лише доступ без числової квоти. Наявність параметра в тарифі не означає, що заплановану функцію вже реалізовано в додатку.
+- `ai_text_review`, `advanced_statistics`, `premium_cosmetics` прибрано з конструктора, підсумків і нових конфігурацій. Старі записи з цими ключами залишаються читабельними; після редагування вони більше не записуються. SQL-контракт допускає відсутні відомі ключі як вимкнені, тому додаткова міграція не потрібна.
 - Числова квота — ціле значення від 1 до 1 000 000. `enabled: true` з обома значеннями `limit`/`period`, рівними `null`, означає доступ без тарифної квоти. Вимкнена функція має `enabled: false`, `limit: null`, `period: null`.
 - Бонусна валюта `reward_currency` — ціле значення від 0 до 1 000 000; негативні та завеликі бонуси відхиляються також у базі.
 - Курси: `none` — не включені, `all` — усі, `selected` — конкретні UUID. Для `selected` потрібні 1–1000 різних ID; для `none`/`all` список порожній. Саме налаштування не публікує чернетки курсів.

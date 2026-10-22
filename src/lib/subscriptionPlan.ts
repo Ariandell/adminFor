@@ -1,10 +1,10 @@
 export type FeaturePeriod = 'day' | 'month' | 'total';
-export type FeatureKey = 'translation' | 'speaking_review' | 'pronunciation_review' | 'personal_cards' | 'flashcards' | 'course_dictionary' | 'irregular_verbs' | 'word_statistics' | 'ai_assistant' | 'ai_text_review' | 'advanced_statistics' | 'premium_cosmetics';
+export type FeatureKey = 'translation' | 'speaking_review' | 'pronunciation_review' | 'personal_cards' | 'flashcards' | 'course_dictionary' | 'irregular_verbs' | 'word_statistics' | 'ai_assistant';
 export type FeatureDefinition = {
   key: FeatureKey;
   label: string;
   description: string;
-  group: 'learning' | 'words' | 'ai' | 'extras';
+  group: 'learning' | 'words' | 'ai';
   status: 'ready' | 'planned';
   period: FeaturePeriod | null;
   unit: string | null;
@@ -20,16 +20,19 @@ export const FEATURE_CATALOG: readonly FeatureDefinition[] = [
   { key: 'irregular_verbs', label: 'Неправильні дієслова', description: 'Словник і повторення неправильних дієслів.', group: 'words', status: 'ready', period: null, unit: null },
   { key: 'word_statistics', label: 'Статистика слів', description: 'Покази, правильні й неправильні відповіді для кожного слова.', group: 'words', status: 'ready', period: null, unit: null },
   { key: 'ai_assistant', label: 'ШІ-помічник', description: 'Майбутній чат-помічник. Ліміт повідомлень користувача.', group: 'ai', status: 'planned', period: 'day', unit: 'повідомлень' },
-  { key: 'ai_text_review', label: 'Перевірка письмових відповідей', description: 'Майбутня ШІ-перевірка відкритих текстових відповідей в уроках.', group: 'ai', status: 'planned', period: 'day', unit: 'перевірок' },
-  { key: 'advanced_statistics', label: 'Розширена статистика', description: 'Майбутні загальні звіти про навчання й прогрес.', group: 'extras', status: 'planned', period: null, unit: null },
-  { key: 'premium_cosmetics', label: 'Додаткові аватари й рамки', description: 'Майбутній доступ до косметичних елементів профілю.', group: 'extras', status: 'planned', period: null, unit: null },
 ];
+
+// Read old plans without exposing or resaving discontinued options.
+const RETIRED_FEATURES = [
+  { key: 'ai_text_review', period: 'day' },
+  { key: 'advanced_statistics', period: null },
+  { key: 'premium_cosmetics', period: null },
+] as const;
 
 export const FEATURE_GROUPS = [
   { key: 'learning', label: 'Навчання' },
   { key: 'words', label: 'Слова й картки' },
   { key: 'ai', label: 'ШІ-помічник' },
-  { key: 'extras', label: 'Додаткові можливості' },
 ] as const;
 
 export type FeatureRule = { enabled: boolean; limit: number | null; period: FeaturePeriod | null };
@@ -82,17 +85,19 @@ export function createPlanDraft(): PlanDraft {
 
 function parseEntitlements(value: unknown): { features: Record<FeatureKey, FeatureDraft>; courses: CourseAccess } | null {
   if (!record(value) || !hasOnly(value, ['version', 'features', 'courses']) || value.version !== 1 || !record(value.features) || !record(value.courses)) return null;
-  const featureKeys = FEATURE_CATALOG.map(feature => feature.key);
+  const supportedFeatures = [...FEATURE_CATALOG, ...RETIRED_FEATURES];
+  const featureKeys = supportedFeatures.map(feature => feature.key);
   if (!hasOnly(value.features, featureKeys) || !hasOnly(value.courses, ['mode', 'ids'])) return null;
   const features = emptyFeatures();
-  for (const definition of FEATURE_CATALOG) {
+  for (const definition of supportedFeatures) {
     const rule = value.features[definition.key];
     if (rule === undefined) continue;
     if (!record(rule) || !hasOnly(rule, ['enabled', 'limit', 'period']) || typeof rule.enabled !== 'boolean' || !('limit' in rule) || !('period' in rule)) return null;
     if (!rule.enabled || rule.limit === null) {
       if (rule.limit !== null || rule.period !== null) return null;
     } else if (!definition.period || !Number.isInteger(rule.limit) || (rule.limit as number) < 1 || (rule.limit as number) > MAX_LIMIT || rule.period !== definition.period) return null;
-    features[definition.key] = { enabled: rule.enabled, unlimited: rule.enabled ? rule.limit === null : definition.period === null, limit: rule.limit === null ? '' : String(rule.limit) };
+    const activeDefinition = FEATURE_CATALOG.find(feature => feature.key === definition.key);
+    if (activeDefinition) features[activeDefinition.key] = { enabled: rule.enabled, unlimited: rule.enabled ? rule.limit === null : definition.period === null, limit: rule.limit === null ? '' : String(rule.limit) };
   }
   const courses = value.courses;
   if (!['none', 'all', 'selected'].includes(String(courses.mode)) || !Array.isArray(courses.ids) || courses.ids.length > 1000 || courses.ids.some(id => typeof id !== 'string' || !UUID.test(id))) return null;
