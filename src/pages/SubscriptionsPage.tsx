@@ -266,9 +266,6 @@ export default function SubscriptionsPage() {
   return <div>
     <PageHeader title="Підписки" description="Створи набір можливостей, вибери курси та налаштуй ліміти."
       actions={<><Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading || saving}><RefreshCw size={16} />Оновити</Button><Button onClick={() => start()} disabled={loading || needsMigration || saving}><Plus size={18} />Створити підписку</Button></>} />
-    <div className="mb-6 rounded-2xl border border-lavender-200 bg-white/75 p-4 text-sm text-ink-600">
-      Тут налаштовується склад підписок. Оплату через Google Play / App Store та застосування цих лімітів у додатку підключимо окремо.
-    </div>
     {needsMigration && <div role="alert" className="mb-5 rounded-xl border border-butter-200 bg-butter-50 p-4 text-sm text-butter-700">
       Для конструктора потрібно оновити базу: <code className="break-all">{migration}</code>.
       <Button variant="ghost" size="sm" onClick={() => void load()}>Перевірити ще раз</Button>
