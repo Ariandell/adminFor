@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { ToastProvider } from './components/Toast';
 import Layout from './components/Layout';
+import AdminGate from './components/AdminGate';
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const CoursesPage = lazy(() => import('./pages/CoursesPage'));
@@ -41,5 +42,5 @@ const router = createBrowserRouter([{
 }]);
 
 export default function App() {
-  return <ToastProvider><Suspense fallback={loading}><RouterProvider router={router} /></Suspense></ToastProvider>;
+  return <ToastProvider><AdminGate><Suspense fallback={loading}><RouterProvider router={router} /></Suspense></AdminGate></ToastProvider>;
 }
