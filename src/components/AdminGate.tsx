@@ -1,36 +1,32 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { supabase } from '../supabaseClient';
-
-type GateState = 'checking' | 'signed-out' | 'denied' | 'allowed';
+import { createAdminAccess, type AdminAccessSnapshot } from '../lib/adminAccess';
 
 export default function AdminGate({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<GateState>('checking');
+  const [access, setAccess] = useState<AdminAccessSnapshot>({ status: 'checking', accountId: null });
+  const state = access.status;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
-    let active = true;
-    let generation = 0;
-    const check = async () => {
-      const current = ++generation;
-      setState('checking');
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (!active || current !== generation) return;
-      if (sessionError || !session) {
-        setState('signed-out');
-        return;
-      }
+    let receivedAuthEvent = false;
+    const guard = createAdminAccess(async () => {
+      // Auth callbacks run under the SDK's session lock. Query after it releases.
+      await new Promise<void>(resolve => window.setTimeout(resolve, 0));
       const { data, error: roleError } = await supabase.rpc('is_anglica_admin');
-      if (!active || current !== generation) return;
-      setState(!roleError && data === true ? 'allowed' : 'denied');
-    };
-    void check();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      // Defer the RPC until the auth SDK has finished updating its session.
-      queueMicrotask(() => { if (active) void check(); });
+      return !roleError && data === true;
+    }, setAccess);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      receivedAuthEvent = true;
+      void guard.update(session?.user.id ?? null);
     });
-    return () => { active = false; generation++; subscription.unsubscribe(); };
+    // INITIAL_SESSION normally handles this. Ignore a stale bootstrap response
+    // if a newer sign-in, refresh or sign-out has already arrived.
+    void supabase.auth.getSession().then(({ data: { session }, error: sessionError }) => {
+      if (!receivedAuthEvent) void guard.update(sessionError ? null : session?.user.id ?? null);
+    }).catch(() => { if (!receivedAuthEvent) void guard.update(null); });
+    return () => { guard.dispose(); subscription.unsubscribe(); };
   }, []);
 
   async function signIn(event: FormEvent) {
