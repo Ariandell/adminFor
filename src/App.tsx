@@ -9,6 +9,7 @@ const CoursesPage = lazy(() => import('./pages/CoursesPage'));
 const CourseDetailsPage = lazy(() => import('./pages/CourseDetailsPage'));
 const LessonEditorPage = lazy(() => import('./pages/LessonEditorPage'));
 const TagsPage = lazy(() => import('./pages/TagsPage'));
+const DailyQuestsPage = lazy(() => import('./pages/DailyQuestsPage'));
 const CardsPage = lazy(() => import('./pages/CardsPage'));
 const CourseVocabularyPage = lazy(() => import('./pages/CourseVocabularyPage'));
 const HomeworkPage = lazy(() => import('./pages/HomeworkPage'));
@@ -30,6 +31,7 @@ const router = createBrowserRouter([{
     { path: 'courses/:courseId/lessons/new', element: <LessonEditorPage /> },
     { path: 'courses/:courseId/lessons/:lessonId', element: <LessonEditorPage /> },
     { path: 'tags', element: <TagsPage /> },
+    { path: 'daily-quests', element: <DailyQuestsPage /> },
     { path: 'cards', element: <CardsPage /> },
     { path: 'course-vocabulary', element: <CourseVocabularyPage /> },
     { path: 'homework', element: <HomeworkPage /> },

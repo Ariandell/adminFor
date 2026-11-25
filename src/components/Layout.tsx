@@ -11,6 +11,7 @@ const navGroups = [
     { name: 'Домашні завдання', path: '/homework', icon: ClipboardCheck },
   ]},
   { label: 'Мотивація', items: [
+    { name: 'Дейліки', path: '/daily-quests', icon: ClipboardCheck },
     { name: 'Досягнення', path: '/achievements', icon: Trophy },
     { name: 'Аватари й рамки', path: '/cosmetics', icon: Palette },
   ]},
