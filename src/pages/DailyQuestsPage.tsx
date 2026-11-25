@@ -5,7 +5,7 @@ import { useToast } from '../components/Toast';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import PageHeader from '../components/ui/PageHeader';
-import { dailyKinds, dailyPayload, emptyDaily, type DailyDraft } from '../lib/dailyQuest';
+import { changeDailyKind, dailyKindGroups, dailyKinds, dailyPayload, emptyDaily, type DailyDraft, type DailyKind } from '../lib/dailyQuest';
 
 type Quest = ReturnType<typeof dailyPayload> & { id: string };
 export default function DailyQuestsPage() {
@@ -57,19 +57,41 @@ export default function DailyQuestsPage() {
       <form onSubmit={e => { e.preventDefault(); void save(); }} className="grid gap-5 sm:grid-cols-2">
         <label className="sm:col-span-2 text-sm font-bold">Назва<input className={input} value={draft.title} maxLength={80} required onChange={e => set('title', e.target.value)} placeholder="Маленькі кроки щодня" /></label>
         <label className="sm:col-span-2 text-sm font-bold">Опис<textarea className={input} value={draft.description} maxLength={240} rows={2} onChange={e => set('description', e.target.value)} /></label>
-        <label className="text-sm font-bold">Умова<select className={input} value={draft.kind} onChange={e => setDraft(d => ({ ...d, kind: e.target.value as DailyDraft['kind'], target: '1' }))}>{dailyKinds.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}</select></label>
-        <label className="text-sm font-bold">Курс<select className={input} value={draft.course_id} onChange={e => set('course_id', e.target.value)}><option value="">Будь-який доступний</option>{courses.map(c => <option value={c.id} key={c.id}>{c.title}</option>)}</select></label>
+        <label className={`text-sm font-bold ${selected.allowsCourse ? '' : 'sm:col-span-2'}`}>
+          Умова
+          <select className={input} value={draft.kind} aria-describedby="daily-condition-description" onChange={e => {
+            const kind = e.target.value as DailyKind;
+            setDraft(current => changeDailyKind(current, kind));
+          }}>
+            {Object.entries(dailyKindGroups).map(([group, label]) => <optgroup key={group} label={label}>
+              {dailyKinds.filter(kind => kind.group === group).map(kind => <option key={kind.value} value={kind.value}>{kind.label}</option>)}
+            </optgroup>)}
+          </select>
+        </label>
+        {selected.allowsCourse && <label className="text-sm font-bold">Курс<select className={input} value={draft.course_id} onChange={e => set('course_id', e.target.value)}><option value="">Будь-який доступний</option>{courses.map(c => <option value={c.id} key={c.id}>{c.title}</option>)}</select></label>}
         <label className="text-sm font-bold">Ціль · {selected.unit}<input className={input} type="number" min={1} max={selected.max} step={1} required value={draft.target} onChange={e => set('target', e.target.value)} /></label>
         <label className="text-sm font-bold">Бали рейтингу<input className={input} type="number" min={0} max={60} step={1} required value={draft.reward_points} onChange={e => set('reward_points', e.target.value)} /></label>
-        <div className="sm:col-span-2 rounded-xl bg-lavender-50 p-4 text-sm"><p className="font-bold">{draft.title || 'Назва дейліка'}</p><p className="mt-1">{selected.label}: {draft.target || '—'} · +{draft.reward_points || '0'} балів</p><p className="mt-2 text-ink-400">{draft.kind === 'weak_words' ? 'Слова з пройдених уроків, які до сьогодні мали відповідь «не знаю».' : draft.kind === 'cards_reviewed' ? 'Слова з пройдених уроків. Кожне зараховується раз на день, незалежно від відповіді.' : 'Зараховуються перші завершення різних уроків за сьогодні.'}</p></div>
+        <div className="sm:col-span-2 rounded-xl bg-lavender-50 p-4 text-sm">
+          <p className="font-bold">{draft.title || 'Назва дейліка'}</p>
+          <p className="mt-1">{selected.label} · {draft.target || '—'} · +{draft.reward_points || '0'} балів</p>
+          <p id="daily-condition-description" className="mt-2 text-ink-400">{selected.description}</p>
+        </div>
         <label className="sm:col-span-2 flex items-center gap-3 text-sm font-bold"><input type="checkbox" checked={draft.is_active} onChange={e => set('is_active', e.target.checked)} />Доступний для видачі</label>
         <p className="sm:col-span-2 text-xs text-ink-400">Зміни застосовуються до нових видач. Уже видані завдання та їхні винагороди зберігаються до кінця дня за Києвом.</p>
         <div className="sm:col-span-2 flex gap-3"><Button type="submit" disabled={busy}>{busy ? 'Зберігаємо…' : 'Зберегти'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => setOpen(false)}>Скасувати</Button></div>
       </form>
     </Card>}
-    {loading ? <p className="py-12 text-center text-ink-400">Завантаження…</p> : rows.length === 0 && !error ? <Card className="py-12 text-center"><CalendarCheck className="mx-auto mb-3 text-lavender-500" size={32} /><p>Створи перше щоденне завдання.</p></Card> : <div className="grid gap-4 lg:grid-cols-2">{rows.map(row => <Card key={row.id}>
-      <div className="flex items-start justify-between gap-4"><div><span className="text-xs text-ink-400">{row.is_active ? 'Активний' : 'Вимкнений'} · +{row.reward_points} балів</span><h2 className="mt-2 text-lg font-extrabold">{row.title}</h2></div><Button size="sm" variant="ghost" onClick={() => edit(row)}><Pencil size={16} />Змінити</Button></div>
-      {row.description && <p className="mt-2 text-sm text-ink-600">{row.description}</p>}<p className="mt-4 text-sm">{dailyKinds.find(k => k.value === row.kind)?.label}: {row.target}</p><p className="mt-1 text-xs text-ink-400">{courses.find(c => c.id === row.course_id)?.title ?? 'Будь-який доступний курс'}</p>
-    </Card>)}</div>}
+    {loading ? <p className="py-12 text-center text-ink-400">Завантаження…</p> : rows.length === 0 && !error ? <Card className="py-12 text-center"><CalendarCheck className="mx-auto mb-3 text-lavender-500" size={32} /><p>Створи перше щоденне завдання.</p></Card> : <div className="grid gap-4 lg:grid-cols-2">{rows.map(row => {
+      const kind = dailyKinds.find(kind => kind.value === row.kind);
+      const scope = kind?.group === 'personal' ? dailyKindGroups.personal
+        : kind?.allowsCourse === false ? 'Різні доступні курси'
+        : courses.find(course => course.id === row.course_id)?.title ?? 'Будь-який доступний курс';
+      return <Card key={row.id}>
+        <div className="flex items-start justify-between gap-4"><div><span className="text-xs text-ink-400">{row.is_active ? 'Активний' : 'Вимкнений'} · +{row.reward_points} балів</span><h2 className="mt-2 text-lg font-extrabold">{row.title}</h2></div><Button size="sm" variant="ghost" onClick={() => edit(row)}><Pencil size={16} />Змінити</Button></div>
+        {row.description && <p className="mt-2 text-sm text-ink-600">{row.description}</p>}
+        <p className="mt-4 text-sm">{kind?.label} · {row.target}</p>
+        <p className="mt-1 text-xs text-ink-400">{scope}</p>
+      </Card>;
+    })}</div>}
   </>;
 }
