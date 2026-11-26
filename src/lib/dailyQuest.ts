@@ -1,10 +1,17 @@
 export const dailyKindGroups = {
+  activity: 'Активність у додатку',
   lessons: 'Уроки й курси',
+  exercises: 'Тести й завдання',
+  listening: 'Аудіювання',
   cards: 'Картки з уроків',
   personal: 'Власний словник',
 } as const;
 
 export const dailyKinds = [
+  {
+    value: 'active_minutes', group: 'activity', label: 'Провести час у додатку', unit: 'хвилин', max: 120, allowsCourse: false,
+    description: 'Рахується активний час у відкритому додатку. Час у фоні та тривала бездіяльність не зараховуються.',
+  },
   {
     value: 'lessons_completed', group: 'lessons', label: 'Пройти нові уроки', unit: 'уроків', max: 10, allowsCourse: true,
     description: 'Зараховується перше завершення кожного уроку сьогодні.',
@@ -20,6 +27,26 @@ export const dailyKinds = [
   {
     value: 'quiz_lessons_checked', group: 'lessons', label: 'Пройти уроки з перевіреним тестом', unit: 'уроків', max: 10, allowsCourse: true,
     description: 'Зараховується новий завершений урок, якщо в ньому є тест і перевірено всі його запитання.',
+  },
+  {
+    value: 'quiz_questions_answered', group: 'exercises', label: 'Відповісти на запитання тестів', unit: 'запитань', max: 100, allowsCourse: true,
+    description: 'Зараховується перша перевірена відповідь на кожне різне запитання за день.',
+  },
+  {
+    value: 'perfect_quizzes', group: 'exercises', label: 'Виконати тести повністю правильно', unit: 'тестів', max: 10, allowsCourse: true,
+    description: 'Потрібно правильно відповісти на всі запитання одного тесту з першої спроби. Кожен тест зараховується раз на день.',
+  },
+  {
+    value: 'correct_answers_streak', group: 'exercises', label: 'Дати правильні відповіді підряд', unit: 'відповідей підряд', max: 50, allowsCourse: true,
+    description: 'Рахується найбільша серія правильних перших відповідей за день. Помилка перериває серію.',
+  },
+  {
+    value: 'ai_tasks_completed', group: 'exercises', label: 'Виконати завдання в АІ-блоці', unit: 'завдань', max: 10, allowsCourse: true,
+    description: 'Зараховується виконане письмове завдання після успішної перевірки в АІ-блоці. Кожне завдання зараховується раз на день.',
+  },
+  {
+    value: 'audio_listened', group: 'listening', label: 'Прослухати аудіо', unit: 'аудіо', max: 20, allowsCourse: true,
+    description: 'Потрібно прослухати щонайменше 90% аудіозапису в уроці. Повторне прослуховування того самого запису зараховується раз на день.',
   },
   {
     value: 'cards_reviewed', group: 'cards', label: 'Повторити різні слова', unit: 'слів', max: 100, allowsCourse: true,

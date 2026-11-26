@@ -6,6 +6,7 @@ interface AudioData {
   url?: string;
   title?: string;
   audioURL?: string;
+  durationMs?: number;
 }
 
 export class CustomAudioTool {
@@ -21,7 +22,7 @@ export class CustomAudioTool {
     this.block = block;
     const initialData = data || {};
     if (initialData.audioURL && !initialData.url) {
-      this.data = { url: initialData.audioURL, title: initialData.title || 'Аудіо файл' };
+      this.data = { ...initialData, url: initialData.audioURL, title: initialData.title || 'Аудіо файл' };
     } else {
       this.data = initialData;
     }
@@ -97,6 +98,13 @@ export class CustomAudioTool {
     });
 
     const audio = document.createElement('audio');
+    audio.preload = 'metadata';
+    audio.addEventListener('loadedmetadata', () => {
+      const durationMs = Math.round(audio.duration * 1000);
+      if (this.data.url !== url || !Number.isFinite(durationMs) || durationMs < 1000 || durationMs > 30 * 60 * 1000 || this.data.durationMs === durationMs) return;
+      this.data = { ...this.data, durationMs };
+      this.block.dispatchChange();
+    });
     audio.src = url;
     audio.controls = true;
     audio.style.cssText = 'width:100%;';

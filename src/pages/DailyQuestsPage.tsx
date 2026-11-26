@@ -84,6 +84,7 @@ export default function DailyQuestsPage() {
     {loading ? <p className="py-12 text-center text-ink-400">Завантаження…</p> : rows.length === 0 && !error ? <Card className="py-12 text-center"><CalendarCheck className="mx-auto mb-3 text-lavender-500" size={32} /><p>Створи перше щоденне завдання.</p></Card> : <div className="grid gap-4 lg:grid-cols-2">{rows.map(row => {
       const kind = dailyKinds.find(kind => kind.value === row.kind);
       const scope = kind?.group === 'personal' ? dailyKindGroups.personal
+        : kind?.group === 'activity' ? 'Увесь додаток'
         : kind?.allowsCourse === false ? 'Різні доступні курси'
         : courses.find(course => course.id === row.course_id)?.title ?? 'Будь-який доступний курс';
       return <Card key={row.id}>
