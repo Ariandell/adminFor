@@ -50,7 +50,7 @@ export default function DailyQuestsPage() {
   const input = 'mt-2 w-full rounded-xl border border-lavender-200 bg-white px-4 py-3 text-sm';
   const selected = dailyKinds.find(k => k.value === draft.kind)!;
   return <>
-    <PageHeader title="Дейліки" description="До трьох завдань на день для кожного учня" actions={<Button onClick={() => edit()} disabled={busy}><Plus size={18} />Створити дейлік</Button>} />
+    <PageHeader title="Дейліки" description="Три випадкові завдання · спільний фонд 60 XP на день" actions={<Button onClick={() => edit()} disabled={busy}><Plus size={18} />Створити дейлік</Button>} />
     {error && <div role="alert" className="mb-5 rounded-xl bg-blush-50 p-4 text-sm">{error} {!open && <Button size="sm" variant="ghost" onClick={load}>Повторити</Button>}</div>}
     {open && <Card className="mb-7">
       <h2 className="mb-5 text-xl font-extrabold">{editing ? 'Редагувати дейлік' : 'Новий дейлік'}</h2>
@@ -70,14 +70,15 @@ export default function DailyQuestsPage() {
         </label>
         {selected.allowsCourse && <label className="text-sm font-bold">Курс<select className={input} value={draft.course_id} onChange={e => set('course_id', e.target.value)}><option value="">Будь-який доступний</option>{courses.map(c => <option value={c.id} key={c.id}>{c.title}</option>)}</select></label>}
         <label className="text-sm font-bold">Ціль · {selected.unit}<input className={input} type="number" min={1} max={selected.max} step={1} required value={draft.target} onChange={e => set('target', e.target.value)} /></label>
-        <label className="text-sm font-bold">Бали рейтингу<input className={input} type="number" min={0} max={60} step={1} required value={draft.reward_points} onChange={e => set('reward_points', e.target.value)} /></label>
+        <label className="text-sm font-bold">Вага винагороди<input className={input} type="number" min={0} max={60} step={1} required value={draft.reward_points} onChange={e => set('reward_points', e.target.value)} /><span className="mt-2 block text-xs font-normal text-ink-400">Більша вага — більша частка від 60 XP. Наприклад, ваги 40, 10 і 5 дадуть 44, 11 і 5 XP.</span></label>
         <div className="sm:col-span-2 rounded-xl bg-lavender-50 p-4 text-sm">
           <p className="font-bold">{draft.title || 'Назва дейліка'}</p>
-          <p className="mt-1">{selected.label} · {draft.target || '—'} · +{draft.reward_points || '0'} балів</p>
+          <p className="mt-1">{selected.label} · {draft.target || '—'} · вага {draft.reward_points || '0'}</p>
           <p id="daily-condition-description" className="mt-2 text-ink-400">{selected.description}</p>
         </div>
         <label className="sm:col-span-2 flex items-center gap-3 text-sm font-bold"><input type="checkbox" checked={draft.is_active} onChange={e => set('is_active', e.target.checked)} />Доступний для видачі</label>
         <p className="sm:col-span-2 text-xs text-ink-400">Зміни застосовуються до нових видач. Уже видані завдання та їхні винагороди зберігаються до кінця дня за Києвом.</p>
+        <p className="sm:col-span-2 text-xs text-ink-400">Якщо доступних завдань менше трьох, кожне вільне місце зберігає резерв 20 XP. Вага 0 рахується як 1. Нові завдання заповнюють вільні місця, не змінюючи вже показані винагороди.</p>
         <div className="sm:col-span-2 flex gap-3"><Button type="submit" disabled={busy}>{busy ? 'Зберігаємо…' : 'Зберегти'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => setOpen(false)}>Скасувати</Button></div>
       </form>
     </Card>}
@@ -88,7 +89,7 @@ export default function DailyQuestsPage() {
         : kind?.allowsCourse === false ? 'Різні доступні курси'
         : courses.find(course => course.id === row.course_id)?.title ?? 'Будь-який доступний курс';
       return <Card key={row.id}>
-        <div className="flex items-start justify-between gap-4"><div><span className="text-xs text-ink-400">{row.is_active ? 'Активний' : 'Вимкнений'} · +{row.reward_points} балів</span><h2 className="mt-2 text-lg font-extrabold">{row.title}</h2></div><Button size="sm" variant="ghost" onClick={() => edit(row)}><Pencil size={16} />Змінити</Button></div>
+        <div className="flex items-start justify-between gap-4"><div><span className="text-xs text-ink-400">{row.is_active ? 'Активний' : 'Вимкнений'} · Вага {row.reward_points}</span><h2 className="mt-2 text-lg font-extrabold">{row.title}</h2></div><Button size="sm" variant="ghost" onClick={() => edit(row)}><Pencil size={16} />Змінити</Button></div>
         {row.description && <p className="mt-2 text-sm text-ink-600">{row.description}</p>}
         <p className="mt-4 text-sm">{kind?.label} · {row.target}</p>
         <p className="mt-1 text-xs text-ink-400">{scope}</p>
